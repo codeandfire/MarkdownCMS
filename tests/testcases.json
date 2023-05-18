@@ -1,0 +1,27 @@
+[
+	{
+		"stdin": "foo\n",
+		"stdout": "bar\n",
+		"stderr": ""
+	},
+	{
+		"stdin": "# Foo\n",
+		"stdout": "<h1>Foo</h1>\n",
+		"stderr": ""
+	},
+	{
+		"stdin": "# Foo # Bar\n",
+		"stdout": "<h1>Foo # Bar</h1>\n",
+		"stderr": ""
+	},
+	{
+		"stdin": "#### Baz\n",
+		"stdout": "<h4>Baz</h4>\n",
+		"stderr": ""
+	},
+	{
+		"stdin": "####### Bar\n",
+		"stdout": "",
+		"stderr": "error: line 1 column 7: HTML does not have headings beyond 6 levels\n"
+	}
+]
