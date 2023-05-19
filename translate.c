@@ -2,20 +2,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdbool.h>
-
-const int HEADING_TEXT_BASE_SIZE = 50;
-
-enum { REGULAR_TEXT, HEADING_NUMBER, HEADING_TEXT } state;
-
-struct {
-	int number;
-	char *textptr;
-	char *textcurptr;
-	int textsize;						/* total amount of space allocated for text */
-} heading;
-
-int lineno = 1;
-int colno = 1;
+#include <stdarg.h>
 
 void trim(char *s)
 {
@@ -32,48 +19,101 @@ void trim(char *s)
 	s[l-i] = '\0';
 }
 
+int lineno = 1, colno = 1;
+
+struct {
+	int number;
+	char *textptr;
+	char *textcurptr;
+	int textsize;						/* total amount of space allocated for text */
+} heading;
+
+void init_heading(int textsize)
+{
+	heading.number = 0;
+	heading.textsize = textsize;
+	heading.textptr = (char *) calloc(textsize, sizeof(char));
+	heading.textcurptr = heading.textptr;
+	*heading.textcurptr = '\0';
+}
+
+void print_heading(void)
+{
+	trim(heading.textptr);
+	printf("<h%d>%s</h%d>", heading.number, heading.textptr, heading.number);
+	free(heading.textptr);
+	heading.number = 0;				/* reset all fields */
+	heading.textsize = 0;
+	heading.textptr = heading.textcurptr = NULL;
+}
+
+void grow_heading(int sizeincr)
+{
+	int offset = heading.textcurptr - heading.textptr;
+	heading.textsize += sizeincr;
+	heading.textptr = (char *) reallocarray(heading.textptr, heading.textsize, sizeof(char));
+	heading.textcurptr = heading.textptr + offset;
+}
+
+enum syntax_errtype { HEADING_NUMBER_TOO_HIGH };
+int syntax_err(enum syntax_errtype et, ...)
+{
+	va_list ap;
+
+	va_start(ap, et);
+	fprintf(stderr, "syntax error: line %d column %d: ", lineno, colno);
+	switch (et) {
+		case HEADING_NUMBER_TOO_HIGH:
+			fprintf(stderr, "HTML does not have headings beyond %d levels", va_arg(ap, int));
+			break;
+	}
+	va_end(ap);
+	fprintf(stderr, "\n");
+	return 1;
+}
+
+const int HEADING_TEXT_BASE_SIZE = 50;
+const int MAX_HEADING_NUMBER = 6;
+
+enum { NONE, HEADING_NUMBER, HEADING_TEXT } state;
+
 int main()
 {
 	int c;
-	bool special;			/* the current character is a recognized Markdown syntax character
-							   and should be handled appropriately, not echoed to the screen */
+	bool syntax;		/* true if the current character is a Markdown syntax character and false if
+						   it is regular text */
 
-	for (; (c = getchar()) != EOF; ++colno, special = false) {
-		if (c == '#') {
-			if (colno == 1) {
-				special = true;
-				heading.number = 1;			/* new heading */
-				heading.textptr = heading.textcurptr = (char *) calloc(HEADING_TEXT_BASE_SIZE, sizeof(char));
-				*heading.textcurptr = '\0';
-				heading.textsize = HEADING_TEXT_BASE_SIZE;
-				state = HEADING_NUMBER;
-			}
-			else if (state == HEADING_NUMBER) {
-				special = true;
-				++heading.number;
-			}
+	for (; (c = getchar()) != EOF; syntax = false, ++colno) {
+		switch (c) {
+			case '#':
+				syntax = true;
+				if (colno == 1) {
+					init_heading(HEADING_TEXT_BASE_SIZE);
+					++heading.number;
+					state = HEADING_NUMBER;
+				}
+				else if (state == HEADING_NUMBER) {
+					if (++heading.number > MAX_HEADING_NUMBER)
+						return syntax_err(HEADING_NUMBER_TOO_HIGH, MAX_HEADING_NUMBER);
+				}
+				else
+					syntax = false;
+				break;
+
+			case '\n':
+				if (state == HEADING_TEXT) {
+					print_heading();
+					state = NONE;
+				}
+				colno = 0, ++lineno;
+				break;
 		}
-		else if (c == '\n') {
-			if (state == HEADING_TEXT) {
-				trim(heading.textptr);		/* heading done */
-				printf("<h%d>%s</h%d>", heading.number, heading.textptr, heading.number);
-				free(heading.textptr);
-				state = REGULAR_TEXT;
-			}
-			special = false;
-			colno = 0;
-			++lineno;
-		}
-		if (!special) {
+		if (!syntax) {
 			if (state == HEADING_NUMBER || state == HEADING_TEXT) {
 				if (state == HEADING_NUMBER)
 					state = HEADING_TEXT;
-				if (heading.textcurptr + 1 > heading.textptr + heading.textsize - 1) {
-					int offset = heading.textcurptr - heading.textptr;
-					heading.textptr = (char *) reallocarray(		/* increase the size */
-						heading.textptr, (heading.textsize += HEADING_TEXT_BASE_SIZE), sizeof(char));
-					heading.textcurptr = heading.textptr + offset;
-				}
+				if (heading.textcurptr + 1 > heading.textptr + heading.textsize - 1)
+					grow_heading(HEADING_TEXT_BASE_SIZE);
 				*heading.textcurptr++ = c;
 				*heading.textcurptr = '\0';
 			}
