@@ -48,7 +48,10 @@ def display(
         labelwidth = 0
     if marks is not None:
         assert len(text) == len(marks)    # as many marks as number of characters in text
-        marks = [(markchar if mark else ' ') for mark in marks]
+        if len(marks) == 0:     # this will mean len(text) == 0 due to the above assertion
+            marks = None        # don't display any marks
+        else:
+            marks = [(markchar if mark else ' ') for mark in marks]
 
     text = list(text)
     if showblanks:

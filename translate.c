@@ -19,13 +19,24 @@ void trim(char *s)
 	s[l-i] = '\0';
 }
 
-int lineno = 1, colno = 1;
+struct {
+	int lineno;					/* current line number */
+	int colno;					/* current column number */
+	enum {
+		NONE,
+		HEADING_NUMBER,
+		HEADING_TEXT
+	} operation;				/* current operation in progress */
+	bool syntax;				/* if the current character is a Markdown syntax character or part of regular text */
+	bool hit_eof;				/* have we encountered EOF or not */
+} state;
 
 struct {
-	int number;
-	char *textptr;
-	char *textcurptr;
-	int textsize;						/* total amount of space allocated for text */
+	int number;					/* heading number (1, 2, 3, 4, 5, 6) */
+	char *textptr;				/* pointer to (starting position of) text */
+	char *textcurptr;			/* pointer to latest position in text */
+	int textsize;				/* size of space allocated for text */
+	bool textempty;				/* text is empty or not, i.e. has at least one non-whitespace character or not */
 } heading;
 
 void init_heading(int textsize)
@@ -35,6 +46,7 @@ void init_heading(int textsize)
 	heading.textptr = (char *) calloc(textsize, sizeof(char));
 	heading.textcurptr = heading.textptr;
 	*heading.textcurptr = '\0';
+	heading.textempty = true;
 }
 
 void print_heading(void)
@@ -45,6 +57,7 @@ void print_heading(void)
 	heading.number = 0;				/* reset all fields */
 	heading.textsize = 0;
 	heading.textptr = heading.textcurptr = NULL;
+	heading.textempty = true;
 }
 
 void grow_heading(int sizeincr)
@@ -55,72 +68,84 @@ void grow_heading(int sizeincr)
 	heading.textcurptr = heading.textptr + offset;
 }
 
-enum syntax_errtype { HEADING_NUMBER_TOO_HIGH };
+enum syntax_errtype {
+	HEADING_NUMBER_TOO_HIGH,
+	NO_HEADING_TEXT
+};
+
 int syntax_err(enum syntax_errtype et, ...)
 {
 	va_list ap;
 
 	va_start(ap, et);
-	fprintf(stderr, "syntax error: line %d column %d: ", lineno, colno);
+	fprintf(stderr, "syntax error: line %d column %d: ", state.lineno, state.colno);
 	switch (et) {
 		case HEADING_NUMBER_TOO_HIGH:
 			fprintf(stderr, "HTML does not have headings beyond %d levels", va_arg(ap, int));
 			break;
+		case NO_HEADING_TEXT:
+			fprintf(stderr, "no heading text");
+			break;
 	}
-	va_end(ap);
 	fprintf(stderr, "\n");
+	va_end(ap);
 	return 1;
 }
 
 const int HEADING_TEXT_BASE_SIZE = 50;
 const int MAX_HEADING_NUMBER = 6;
 
-enum { NONE, HEADING_NUMBER, HEADING_TEXT } state;
-
 int main()
 {
 	int c;
-	bool syntax;		/* true if the current character is a Markdown syntax character and false if
-						   it is regular text */
 
-	for (; (c = getchar()) != EOF; syntax = false, ++colno) {
-		switch (c) {
+	for (state.lineno = state.colno = 1, state.operation = NONE, state.hit_eof = false; !state.hit_eof; state.syntax = false, ++state.colno) {
+		switch (c = getchar()) {
 			case '#':
-				syntax = true;
-				if (colno == 1) {
+				state.syntax = true;
+				if (state.colno == 1) {
 					init_heading(HEADING_TEXT_BASE_SIZE);
 					++heading.number;
-					state = HEADING_NUMBER;
+					state.operation = HEADING_NUMBER;
 				}
-				else if (state == HEADING_NUMBER) {
+				else if (state.operation == HEADING_NUMBER) {
 					if (++heading.number > MAX_HEADING_NUMBER)
 						return syntax_err(HEADING_NUMBER_TOO_HIGH, MAX_HEADING_NUMBER);
 				}
 				else
-					syntax = false;
+					state.syntax = false;
 				break;
 
-			case '\n':
-				if (state == HEADING_TEXT) {
+			case EOF:
+				state.hit_eof = true;
+				--state.colno;		/* EOF should not be counted as a character; this matters for the syntax_err()
+									   calls below because they print out state.colno */
+			case '\n':				/* fall-through intended here: on encountering EOF do the same things that
+										would be done on encountering a newline */
+				if (state.operation == HEADING_NUMBER || state.operation == HEADING_TEXT) {
+					if (heading.textempty)		/* if state.operation == HEADING_NUMBER then certainly heading.textempty == true */
+						return syntax_err(NO_HEADING_TEXT);
 					print_heading();
-					state = NONE;
+					state.operation = NONE;
 				}
-				colno = 0, ++lineno;
+				state.colno = 0;
+				++state.lineno;
 				break;
 		}
-		if (!syntax) {
-			if (state == HEADING_NUMBER || state == HEADING_TEXT) {
-				if (state == HEADING_NUMBER)
-					state = HEADING_TEXT;
+		if (!state.syntax) {
+			if (state.operation == HEADING_NUMBER || state.operation == HEADING_TEXT) {
+				if (state.operation == HEADING_NUMBER)
+					state.operation = HEADING_TEXT;
 				if (heading.textcurptr + 1 > heading.textptr + heading.textsize - 1)
 					grow_heading(HEADING_TEXT_BASE_SIZE);
+				if (!isspace(c))
+					heading.textempty = false;
 				*heading.textcurptr++ = c;
 				*heading.textcurptr = '\0';
 			}
-			else
+			else if (c != EOF)
 				putchar(c);
 		}
 	}
-
 	return 0;
 }
