@@ -19,6 +19,36 @@ void trim(char *s)
 	s[l-i] = '\0';
 }
 
+struct growstr {				/* "growing" string */
+	char *ptr;					/* pointer to the start of the string */
+	char *curptr;				/* pointer to the current "position" in the string */
+	int size;					/* size of total space allocated for the string */
+	int growsize;				/* constant increment by which size grows */
+};
+
+void init_growstr(struct growstr *pgstr, int initsize, int growsize) {
+	pgstr->ptr = (char *) calloc(initsize, sizeof(char));
+	pgstr->curptr = pgstr->ptr;
+	*pgstr->curptr = '\0';
+	pgstr->size = initsize;
+	pgstr->growsize = growsize;
+}
+
+void push_growstr(struct growstr *pgstr, char c) {
+	if (pgstr->curptr + 1 > pgstr->ptr + pgstr->size - 1) {
+		int offset = pgstr->curptr - pgstr->ptr;
+		pgstr->ptr = (char *) reallocarray(pgstr->ptr, (pgstr->size += pgstr->growsize), sizeof(char));
+		pgstr->curptr = pgstr->ptr + offset;
+	}
+	*pgstr->curptr++ = c;
+	*pgstr->curptr = '\0';
+}
+
+void free_growstr(struct growstr *pgstr) {
+	free(pgstr->ptr);
+	pgstr->ptr = pgstr->curptr = NULL;
+}
+
 struct {
 	int lineno;					/* current line number */
 	int colno;					/* current column number */
@@ -33,39 +63,13 @@ struct {
 
 struct {
 	int number;					/* heading number (1, 2, 3, 4, 5, 6) */
-	char *textptr;				/* pointer to (starting position of) text */
-	char *textcurptr;			/* pointer to latest position in text */
-	int textsize;				/* size of space allocated for text */
+	struct growstr text;		/* heading text */
 	bool textempty;				/* text is empty or not, i.e. has at least one non-whitespace character or not */
 } heading;
 
-void init_heading(int textsize)
-{
-	heading.number = 0;
-	heading.textsize = textsize;
-	heading.textptr = (char *) calloc(textsize, sizeof(char));
-	heading.textcurptr = heading.textptr;
-	*heading.textcurptr = '\0';
-	heading.textempty = true;
-}
-
-void print_heading(void)
-{
-	trim(heading.textptr);
-	printf("<h%d>%s</h%d>", heading.number, heading.textptr, heading.number);
-	free(heading.textptr);
-	heading.number = 0;				/* reset all fields */
-	heading.textsize = 0;
-	heading.textptr = heading.textcurptr = NULL;
-	heading.textempty = true;
-}
-
-void grow_heading(int sizeincr)
-{
-	int offset = heading.textcurptr - heading.textptr;
-	heading.textsize += sizeincr;
-	heading.textptr = (char *) reallocarray(heading.textptr, heading.textsize, sizeof(char));
-	heading.textcurptr = heading.textptr + offset;
+void print_heading(void) {
+	trim(heading.text.ptr);
+	printf("<h%d>%s</h%d>", heading.number, heading.text.ptr, heading.number);
 }
 
 enum syntax_errtype {
@@ -104,8 +108,9 @@ int main()
 			case '#':
 				state.syntax = true;
 				if (state.colno == 1) {
-					init_heading(HEADING_TEXT_BASE_SIZE);
-					++heading.number;
+					heading.number = 1;
+					heading.textempty = true;
+					init_growstr(&heading.text, HEADING_TEXT_BASE_SIZE, HEADING_TEXT_BASE_SIZE);
 					state.operation = HEADING_NUMBER;
 				}
 				else if (state.operation == HEADING_NUMBER) {
@@ -126,6 +131,7 @@ int main()
 					if (heading.textempty)		/* if state.operation == HEADING_NUMBER then certainly heading.textempty == true */
 						return syntax_err(NO_HEADING_TEXT);
 					print_heading();
+					free_growstr(&heading.text);
 					state.operation = NONE;
 				}
 				state.colno = 0;
@@ -136,12 +142,9 @@ int main()
 			if (state.operation == HEADING_NUMBER || state.operation == HEADING_TEXT) {
 				if (state.operation == HEADING_NUMBER)
 					state.operation = HEADING_TEXT;
-				if (heading.textcurptr + 1 > heading.textptr + heading.textsize - 1)
-					grow_heading(HEADING_TEXT_BASE_SIZE);
+				push_growstr(&heading.text, c);
 				if (!isspace(c))
 					heading.textempty = false;
-				*heading.textcurptr++ = c;
-				*heading.textcurptr = '\0';
 			}
 			else if (c != EOF)
 				putchar(c);
