@@ -86,9 +86,11 @@ int syntax_err(enum syntax_errtype et, ...)
 	switch (et) {
 		case HEADING_NUMBER_TOO_HIGH:
 			fprintf(stderr, "HTML does not have headings beyond %d levels", va_arg(ap, int));
+			free_growstr(&heading.text);
 			break;
 		case NO_HEADING_TEXT:
 			fprintf(stderr, "no heading text");
+			free_growstr(&heading.text);
 			break;
 	}
 	fprintf(stderr, "\n");
