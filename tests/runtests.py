@@ -99,7 +99,8 @@ matcher = SequenceMatcher()
 Testcase = namedtuple('Testcase', ['stdin', 'stdout', 'stderr'], defaults=[None, '', ''])
 
 with Path(__file__).parent.joinpath('testcases.yml').open() as f:
-    testcases = yaml.safe_load(f)
+    testcases = yaml.safe_load_all(f)
+    testcases = [case for doc in testcases for case in doc]     # doc = YAML document
 
 count = 0
 for idx, case in enumerate(testcases):
