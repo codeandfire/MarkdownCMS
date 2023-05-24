@@ -1,123 +1,123 @@
 # regular text
 ---
-- stdin: ""
+- stdin : ""
   stdout: ""
 
-- stdin: "\n"
+- stdin : "\n"
   stdout: "\n"
 
-- stdin: "   "
+- stdin : "   "
   stdout: "   "
 
-- stdin: "\t\t\t"
+- stdin : "\t\t\t"
   stdout: "\t\t\t"
 
-- stdin: " \t  \t   \t "
+- stdin : " \t  \t   \t "
   stdout: " \t  \t   \t "
 
 # headings
 ---
-- stdin: "#"
+- stdin : "#"
   stdout: ""
   stderr: "syntax error: line 1 column 1: no heading text\n"
 
-- stdin: "#\n"
+- stdin : "#\n"
   stdout: ""
   stderr: "syntax error: line 1 column 2: no heading text\n"
 
-- stdin: "\n#\n"
+- stdin : "\n#\n"
   stdout: "\n"
   stderr: "syntax error: line 2 column 2: no heading text\n"
 
-- stdin: " #"
+- stdin : " #"
   stdout: " #"
 
-- stdin: " #\n"
+- stdin : " #\n"
   stdout: " #\n"
 
-- stdin: "\n #\n"
+- stdin : "\n #\n"
   stdout: "\n #\n"
 
-- stdin: "#  "
+- stdin : "#  "
   stdout: ""
   stderr: "syntax error: line 1 column 3: no heading text\n"
 
-- stdin: "#\t"
+- stdin : "#\t"
   stdout: ""
   stderr: "syntax error: line 1 column 2: no heading text\n"
 
-- stdin: "# # #"
+- stdin : "# # #"
   stdout: "<h1># #</h1>"
 
-- stdin: "## #"
+- stdin : "## #"
   stdout: "<h2>#</h2>"
 
-- stdin: "###"
+- stdin : "###"
   stdout: ""
   stderr: "syntax error: line 1 column 3: no heading text\n"
 
-- stdin: "#a"
+- stdin : "#a"
   stdout: "<h1>a</h1>"
 
-- stdin: "# a"
+- stdin : "# a"
   stdout: "<h1>a</h1>"
 
-- stdin: "#   a"
+- stdin : "#   a"
   stdout: "<h1>a</h1>"
 
-- stdin: "#\ta"
+- stdin : "#\ta"
   stdout: "<h1>a</h1>"
 
-- stdin: "#\t\ta"
+- stdin : "#\t\ta"
   stdout: "<h1>a</h1>"
 
-- stdin: "#\na"
+- stdin : "#\na"
   stdout: ""
   stderr: "syntax error: line 1 column 2: no heading text\n"
 
-- stdin: "# a\nb"
+- stdin : "# a\nb"
   stdout: "<h1>a</h1>\nb"
 
-- stdin: "#a "
+- stdin : "#a "
   stdout: "<h1>a</h1>"
 
-- stdin: "#a   "
+- stdin : "#a   "
   stdout: "<h1>a</h1>"
 
-- stdin: "#a\t"
+- stdin : "#a\t"
   stdout: "<h1>a</h1>"
 
-- stdin: "#a\t\t"
+- stdin : "#a\t\t"
   stdout: "<h1>a</h1>"
 
-- stdin: "#a\n\tb"
+- stdin : "#a\n\tb"
   stdout: "<h1>a</h1>\n\tb"
 
-- stdin: "#a\n# b"
+- stdin : "#a\n# b"
   stdout: "<h1>a</h1>\n<h1>b</h1>"
 
-- stdin: "#a\n\n# b"
+- stdin : "#a\n\n# b"
   stdout: "<h1>a</h1>\n\n<h1>b</h1>"
 
-- stdin: "\n## a\n#b"
+- stdin : "\n## a\n#b"
   stdout: "\n<h2>a</h2>\n<h1>b</h1>"
 
-- stdin: "###a\n"
+- stdin : "###a\n"
   stdout: "<h3>a</h3>\n"
 
-- stdin: "\n#### b\n"
+- stdin : "\n#### b\n"
   stdout: "\n<h4>b</h4>\n"
 
-- stdin: "a ##### b"
+- stdin : "a ##### b"
   stdout: "a ##### b"
 
-- stdin: "a\n##### b\n"
+- stdin : "a\n##### b\n"
   stdout: "a\n<h5>b</h5>\n"
 
-- stdin: "\n###### abcd"
+- stdin : "\n###### abcd"
   stdout: "\n<h6>abcd</h6>"
 
-- stdin: "####### abcde\n"
+- stdin : "####### abcde\n"
   stdout: ""
   stderr: "syntax error: line 1 column 7: HTML does not have headings beyond 6 levels\n"
 ...
