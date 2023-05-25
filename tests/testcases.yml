@@ -1,4 +1,3 @@
-# regular text
 ---
 - stdin : ""
   stdout: ""
@@ -6,14 +5,104 @@
 - stdin : "\n"
   stdout: "\n"
 
+- stdin : "abc"
+  stdout: "abc"
+
+- stdin : "1234"
+  stdout: "1234"
+
+- stdin : "a1b2c3d\n"
+  stdout: "a1b2c3d\n"
+
+# whitespace
+---
+
+- stdin : " "
+  stdout: " "
+
+- stdin : "  "
+  stdout: "  "
+  stderr: "warning: line 1 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
+
 - stdin : "   "
   stdout: "   "
+  stderr: "warning: line 1 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
 
-- stdin : "\t\t\t"
-  stdout: "\t\t\t"
+- stdin : "    "
+  stdout: "    "
+  stderr: "warning: line 1 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
 
-- stdin : " \t  \t   \t "
-  stdout: " \t  \t   \t "
+- stdin : "a                                                                                                                                                                       b"
+  stdout: "a                                                                                                                                                                       b"
+  stderr: "warning: line 1 column 3: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
+
+- stdin : "a   b       c"
+  stdout: "a   b       c"
+  stderr: "warning: line 1 column 3: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 7: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
+
+- stdin : "a b   c d     e             f"
+  stdout: "a b   c d     e             f"
+  stderr: "warning: line 1 column 5: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 11: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 17: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
+
+- stdin : "a b     \n           c"
+  stdout: "a b     \n           c"
+  stderr: "warning: line 1 column 5: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 2 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
+
+- stdin : "\t"
+  stdout: "\t"
+  stderr: "warning: line 1 column 1: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
+
+- stdin : "\t\t"
+  stdout: "\t\t"
+  stderr: "warning: line 1 column 1: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
+
+- stdin : "a\tb"
+  stdout: "a\tb"
+  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
+
+- stdin : "a\t\t\tb"
+  stdout: "a\t\t\tb"
+  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
+
+- stdin : "a\t\tb\t\t\t\tc"
+  stdout: "a\t\tb\t\t\t\tc"
+  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 5: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
+
+- stdin : "a\tb\tc\t\td\t\te\t\t\tf"
+  stdout: "a\tb\tc\t\td\t\te\t\t\tf"
+  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 4: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 6: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 9: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 12: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
+
+- stdin : "\t "
+  stdout: "\t "
+  stderr: "warning: line 1 column 1: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
+
+- stdin : "  \t"
+  stdout: "  \t"
+  stderr: "warning: line 1 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 3: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
+
+- stdin : "\t\n \t   \n"
+  stdout: "\t\n \t   \n"
+  stderr: "warning: line 1 column 1: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 2 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 2 column 4: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
+
+- stdin : " \n \n \n \t"
+  stdout: " \n \n \n \t"
+  stderr: "warning: line 4 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
+
+- stdin : "  \t  \n  "
+  stdout: "  \t  \n  "
+  stderr: "warning: line 1 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 3: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 5: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 2 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
+
+- stdin : "a\t\tb\t  c\nd\t\te\t  f\ng\t\th\t  i\n"
+  stdout: "a\t\tb\t  c\nd\t\te\t  f\ng\t\th\t  i\n"
+  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 5: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 7: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 2 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 2 column 5: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 2 column 7: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 3 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 3 column 5: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 3 column 7: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
+
+- stdin : "a\t\t        b    \tc\n"
+  stdout: "a\t\t        b    \tc\n"
+  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 5: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 14: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 17: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
+
+- stdin : "a\t\t\t\t\t\t\t\t\t\t\t\t                                                                     b"
+  stdout: "a\t\t\t\t\t\t\t\t\t\t\t\t                                                                     b"
+  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 15: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
 
 # headings
 ---
