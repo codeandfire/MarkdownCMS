@@ -108,7 +108,8 @@ int syntaxerr(enum syntaxerr_type et, ...)
 
 enum warning_type {
 	MULTIPLE_SPACES_USED,
-	TAB_USED
+	TAB_USED,
+	TRAILING_WHITESPACE
 };
 
 void warning(enum warning_type wt)
@@ -120,6 +121,10 @@ void warning(enum warning_type wt)
 			break;
 		case TAB_USED:
 			fprintf(stderr, "use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering");
+			break;
+		case TRAILING_WHITESPACE:
+			fprintf(stderr, "trailing whitespace");
+			break;
 	}
 	fprintf(stderr, "\n");
 }
@@ -143,7 +148,11 @@ int main()
 		)
 			/* if we are coming from a space sequence and encountering a non-space character, if we are coming
 			 * from a tab sequence and encountering a non-tab character, in both cases end the sequence */
-			state.cons_whitespace = SPACETAB_SEQUENCE_OVER;
+			if (c != '\n' && c != EOF)
+				/* if the current character is a newline or an EOF, don't make this change now, as we require
+				 * this information (of state.cons_whitespace) for a trailing whitespace check that we make
+				 * later; after that check we make this same change */
+				state.cons_whitespace = SPACETAB_SEQUENCE_OVER;
 
 		switch (c) {
 			case '#':
@@ -190,7 +199,7 @@ int main()
 			case EOF:
 				state.hit_eof = true;
 				--state.colno;		/* EOF should not be counted as a character; this matters for the syntaxerr()
-									   calls below because they print out state.colno */
+									   and warning() calls below because they print out state.colno */
 			case '\n':				/* fall-through intended here: on encountering EOF do the same things that
 										would be done on encountering a newline */
 				if (state.operation == HEADING_NUMBER || state.operation == HEADING_TEXT) {
@@ -199,6 +208,11 @@ int main()
 					print_heading();
 					free_growstr(&heading.text);
 					state.operation = NO_OPERATION;
+				}
+				if (state.cons_whitespace != SPACETAB_SEQUENCE_OVER) {
+					/* the trailing whitespace check: as promised earlier, we change state.cons_whitespace here */
+					warning(TRAILING_WHITESPACE);
+					state.cons_whitespace = SPACETAB_SEQUENCE_OVER;
 				}
 				state.colno = 0;
 				++state.lineno;
