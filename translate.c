@@ -53,10 +53,18 @@ struct {
 	int lineno;					/* current line number */
 	int colno;					/* current column number */
 	enum {
-		NONE,
+		NO_OPERATION,
 		HEADING_NUMBER,
 		HEADING_TEXT
 	} operation;				/* current operation in progress */
+	enum {
+		SPACETAB_SEQUENCE_OVER,
+		ONE_SPACE,
+		TWO_SPACES,
+		ONE_TAB
+	} cons_whitespace;			/* consecutive whitespace: a sequence of consecutive spaces or tabs
+								   (NOTE: we can have a sequence of either spaces or either tabs, we don't count
+								   mixed space/tab sequences) */
 	bool syntax;				/* if the current character is a Markdown syntax character or part of regular text */
 	bool hit_eof;				/* have we encountered EOF or not */
 } state;
@@ -72,12 +80,12 @@ void print_heading(void) {
 	printf("<h%d>%s</h%d>", heading.number, heading.text.ptr, heading.number);
 }
 
-enum syntax_errtype {
+enum syntaxerr_type {
 	HEADING_NUMBER_TOO_HIGH,
 	NO_HEADING_TEXT
 };
 
-int syntax_err(enum syntax_errtype et, ...)
+int syntaxerr(enum syntaxerr_type et, ...)
 {
 	va_list ap;
 
@@ -98,6 +106,29 @@ int syntax_err(enum syntax_errtype et, ...)
 	return 1;
 }
 
+enum warning_type {
+	MULTIPLE_SPACES_USED,
+	TAB_USED,
+	TRAILING_WHITESPACE
+};
+
+void warning(enum warning_type wt)
+{
+	fprintf(stderr, "warning: line %d column %d: ", state.lineno, state.colno);
+	switch (wt) {
+		case MULTIPLE_SPACES_USED:
+			fprintf(stderr, "use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering");
+			break;
+		case TAB_USED:
+			fprintf(stderr, "use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering");
+			break;
+		case TRAILING_WHITESPACE:
+			fprintf(stderr, "trailing whitespace");
+			break;
+	}
+	fprintf(stderr, "\n");
+}
+
 const int HEADING_TEXT_BASE_SIZE = 50;
 const int MAX_HEADING_NUMBER = 6;
 
@@ -105,8 +136,25 @@ int main()
 {
 	int c;
 
-	for (state.lineno = state.colno = 1, state.operation = NONE, state.hit_eof = false; !state.hit_eof; state.syntax = false, ++state.colno) {
-		switch (c = getchar()) {
+	for (
+			state.lineno = state.colno = 1, state.operation = NO_OPERATION, state.cons_whitespace = SPACETAB_SEQUENCE_OVER, state.hit_eof = false;
+			!state.hit_eof;
+			state.syntax = false, ++state.colno
+	) {
+		c = getchar();
+		if (
+				((state.cons_whitespace == ONE_SPACE || state.cons_whitespace == TWO_SPACES) && c != ' ')
+				|| (state.cons_whitespace == ONE_TAB && c != '\t')
+		)
+			/* if we are coming from a space sequence and encountering a non-space character, if we are coming
+			 * from a tab sequence and encountering a non-tab character, in both cases end the sequence */
+			if (c != '\n' && c != EOF)
+				/* if the current character is a newline or an EOF, don't make this change now, as we require
+				 * this information (of state.cons_whitespace) for a trailing whitespace check that we make
+				 * later; after that check we make this same change */
+				state.cons_whitespace = SPACETAB_SEQUENCE_OVER;
+
+		switch (c) {
 			case '#':
 				state.syntax = true;
 				if (state.colno == 1) {
@@ -117,29 +165,60 @@ int main()
 				}
 				else if (state.operation == HEADING_NUMBER) {
 					if (++heading.number > MAX_HEADING_NUMBER)
-						return syntax_err(HEADING_NUMBER_TOO_HIGH, MAX_HEADING_NUMBER);
+						return syntaxerr(HEADING_NUMBER_TOO_HIGH, MAX_HEADING_NUMBER);
 				}
 				else
 					state.syntax = false;
 				break;
 
+			case ' ':
+				switch (state.cons_whitespace) {
+					case SPACETAB_SEQUENCE_OVER:
+						state.cons_whitespace = ONE_SPACE;
+						break;
+					case ONE_SPACE:
+						state.cons_whitespace = TWO_SPACES;
+						warning(MULTIPLE_SPACES_USED);
+						break;
+					case TWO_SPACES:
+						break;		/* do nothing: no further warnings required */
+				}
+				break;
+
+			case '\t':
+				switch (state.cons_whitespace) {
+					case SPACETAB_SEQUENCE_OVER:
+						state.cons_whitespace = ONE_TAB;
+						warning(TAB_USED);
+						break;
+					case ONE_TAB:
+						break;		/* do nothing: no further warnings required */
+				}
+				break;
+
 			case EOF:
 				state.hit_eof = true;
-				--state.colno;		/* EOF should not be counted as a character; this matters for the syntax_err()
-									   calls below because they print out state.colno */
+				--state.colno;		/* EOF should not be counted as a character; this matters for the syntaxerr()
+									   and warning() calls below because they print out state.colno */
 			case '\n':				/* fall-through intended here: on encountering EOF do the same things that
 										would be done on encountering a newline */
 				if (state.operation == HEADING_NUMBER || state.operation == HEADING_TEXT) {
 					if (heading.textempty)		/* if state.operation == HEADING_NUMBER then certainly heading.textempty == true */
-						return syntax_err(NO_HEADING_TEXT);
+						return syntaxerr(NO_HEADING_TEXT);
 					print_heading();
 					free_growstr(&heading.text);
-					state.operation = NONE;
+					state.operation = NO_OPERATION;
+				}
+				if (state.cons_whitespace != SPACETAB_SEQUENCE_OVER) {
+					/* the trailing whitespace check: as promised earlier, we change state.cons_whitespace here */
+					warning(TRAILING_WHITESPACE);
+					state.cons_whitespace = SPACETAB_SEQUENCE_OVER;
 				}
 				state.colno = 0;
 				++state.lineno;
 				break;
 		}
+
 		if (!state.syntax) {
 			if (state.operation == HEADING_NUMBER || state.operation == HEADING_TEXT) {
 				if (state.operation == HEADING_NUMBER)
@@ -152,5 +231,6 @@ int main()
 				putchar(c);
 		}
 	}
+
 	return 0;
 }
