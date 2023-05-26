@@ -96,7 +96,8 @@ except subprocess.CalledProcessError:
     sys.exit(1)             # exit with code 1 if compilation fails
 
 matcher = SequenceMatcher()
-Testcase = namedtuple('Testcase', ['stdin', 'stdout', 'stderr'], defaults=[None, '', ''])
+Testcase = namedtuple(
+    'Testcase', ['stdin', 'stdout', 'stderr'], defaults=[None, None, ''])
 
 with Path(__file__).parent.joinpath('testcases.yml').open() as f:
     testcases = yaml.safe_load(f)
