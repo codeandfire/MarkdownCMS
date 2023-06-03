@@ -2,12 +2,57 @@
 
 import sys
 import yaml
-import textwrap
 import subprocess
 import unicodedata
 from pathlib import Path
 from collections import namedtuple
 from difflib import SequenceMatcher
+
+debug = '-debug' in sys.argv[1:]
+spaceout = '-spaceout' in sys.argv[1:]
+
+def _wrap(text, width, initial_indent='', subsequent_indent=''):
+    """A text wrapping function.
+
+    The textwrap.wrap() function in the Python standard library is meant for text wrapping
+    but does not do precisely what we want. In particular, it breaks the line on
+    whitespace which messes up the positions of the marks. For example:
+
+        aaaaaaaaaabbbbbbbbbbbbbbbbb
+        ^^^^^^^^^^
+
+        bbbbbbbbbbaaaaaaaaaaaaaa
+                  ^^^^^^^^^^^^^^
+
+    The a's are meant to be marked, as shown above. But with textwrap.wrap() we will get:
+
+        aaaaaaaaaabbbbbbbbbbbbbbbbb
+        ^^^^^^^^^^
+
+        bbbbbbbbbbaaaaaaaaaaaaaa
+        ^^^^^^^^^^^^^^
+
+    i.e. encountering continuous whitespace after the marks for the a's on the first line,
+    a linebreak is issued and further whitespace is stripped due to which the marks for
+    the a's on the second line are brought to the front of the line resulting in incorrect
+    marking.
+
+    (Basically textwrap.wrap() is based on standard rules for word wrapping, which is not
+    what we want.)
+
+    This function, however, is based on the design of textwrap.wrap() (in particular its
+    initial_indent and subsequent_indent arguments behave the same as that function).
+    """
+
+    assert len(initial_indent) < width
+    assert len(subsequent_indent) < width
+
+    lines = []
+    while len(text) > 0:
+        indent = initial_indent if len(lines) == 0 else subsequent_indent
+        lines.append(indent + text[: width - len(indent)])
+        text = text[width - len(indent): ]
+    return lines
 
 def display(
         text, textwidth=90,
@@ -16,6 +61,8 @@ def display(
         showblanks=True,
         spaceout=True, spacechar=unicodedata.lookup('BLACK CIRCLE')):
     """
+    Display a piece of text, with an optional label and marks, as follows:
+
     <label>        ........................................... <text>
                     ^  ^     ^   ^^^^^^^^^^     ^^^^^^         <marks>
                    ........................................... <text>
@@ -28,7 +75,7 @@ def display(
     | ----------- || ---------------------------------------- |
       labelwidth                    textwidth
 
-    with spaceout :
+    With spaceout=True:
 
     <label>        . . . . . . . . . . . . . . . . . . . . . . . <text>
                      ^     ^     ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^     ^     <marks>
@@ -53,7 +100,7 @@ def display(
         else:
             marks = [(markchar if mark else ' ') for mark in marks]
 
-    text = list(text)
+    text = list(text)           # list of characters in text
     if showblanks:
         if marks is not None:
             # marks corresponding to \t, \n or \r need an extra space after the mark
@@ -70,17 +117,18 @@ def display(
     if marks is not None:
         marks = (' ' if spaceout else '').join(marks)
 
-    text = textwrap.wrap(
-        label + nspaces(labelwidth - len(label)) + text,  # we add the label as part of the text for easy formatting
-        width=(labelwidth + textwidth),
-        drop_whitespace=False,  # NOTE: consider replace_whitespace, expand_tabs, tabsize?
-        initial_indent=nspaces(0), subsequent_indent=nspaces(labelwidth))
+    text = _wrap(
+        label + nspaces(labelwidth - len(label)) + text,
+        labelwidth + textwidth,
+        initial_indent=nspaces(0),
+        subsequent_indent=nspaces(labelwidth))
+
     if marks is not None:
-        marks = textwrap.wrap(
+        marks = _wrap(
             marks,
-            width=(labelwidth + textwidth),
-            drop_whitespace=False,  # same NOTE as before
-            initial_indent=nspaces(labelwidth), subsequent_indent=nspaces(labelwidth))
+            labelwidth + textwidth,
+            initial_indent=nspaces(labelwidth),
+            subsequent_indent=nspaces(labelwidth))
         assert len(marks) == len(text)      # both must have the same number of lines
         # append the marks lines after their corresponding text lines
         text = [
@@ -99,7 +147,8 @@ matcher = SequenceMatcher()
 Testcase = namedtuple(
     'Testcase', ['stdin', 'stdout', 'stderr'], defaults=[None, None, ''])
 
-with Path(__file__).parent.joinpath('testcases.yml').open() as f:
+testfile = 'testrunner_testcases.yml' if debug else 'testcases.yml'
+with Path(__file__).parent.joinpath(testfile).open() as f:
     testcases = yaml.safe_load_all(f)
     testcases = [case for doc in testcases for case in doc]     # doc = YAML document
 
@@ -116,7 +165,7 @@ for idx, case in enumerate(testcases):
         continue
 
     print(f'Case #{idx+1}')
-    display(text=case.stdin, label='stdin', marks=None)
+    display(text=case.stdin, label='stdin', marks=None, spaceout=spaceout)
     for field in ['stdout', 'stderr']:
         sentA, sentB = getattr(run_obj, field), getattr(case, field)
         if sentA == sentB:
@@ -128,8 +177,8 @@ for idx, case in enumerate(testcases):
             # the sequences belonging to matching blocks are correct and should not be marked
             marksA[block.a : block.a + block.size] = [False for _ in range(block.size)]
             marksB[block.b : block.b + block.size] = [False for _ in range(block.size)]
-        display(text=sentA, label=field, marks=marksA)
-        display(text=sentB, label='expected', marks=marksB)
+        display(text=sentA, label=field, marks=marksA, spaceout=spaceout)
+        display(text=sentB, label='expected', marks=marksB, spaceout=spaceout)
     print('---')
 
 print(f'{count}/{idx+1} passed.')

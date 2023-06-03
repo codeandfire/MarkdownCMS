@@ -1,0 +1,25 @@
+# These are tests written to be deliberately WRONG and are meant for debugging the test runner
+# script. The "real" tests file is testcases.yml.
+
+---
+- stdin : "foo"
+  stdout: "bar"
+  stderr: "I wanted you to change foo into bar!"
+
+- stdin : "foobar"
+  stdout: "foobar"
+  stderr: "I am expecting this really long error which is never going to come but anyway here's the extra long error which probably spans over a 100 characters by now and I hope to extend it all the way down to 200 characters if possible and I think I have reached about 300 characters by now.\n"
+
+- stdin : "           "
+  stdout: "           "
+  stderr: "warning: use of multiple spaces for increased spacing does not work <some gibberish here> to one space while rendering\n"
+
+- stdin : "lorem ipsum dolor sit amet"
+  stdout: "LOREM IPSUM DOLOR SIT AMET LOREM IPSUM DOLOR SIT AMET LOREM IPSUM DOLOR SIT AMET LOREM IPSUM DOLOR SIT AMET LOREM IPSUM DOLOR SIT AMET"
+
+- stdin : "lorem ipsum dolor sit amet lorem ipsum dolor sit amet lorem ipsum dolor sit amet lorem ipsum dolor sit amet lorem ipsum dolor sit amet lorem ipsum dolor sit amet"
+  stdout: "lorem ipsum foobar sit amet barbaz ipsum foobaz sit amet lorem ipsum dolor sit amet foobar ipsum dolor sit amet lorem ipsum barbaz sit amet lorem ipsum dolor bazfoo amet"
+
+- stdin : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  stdout: "aaaaaaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbaaaaaaaaaaaaaabbbbbbbbbbbbbaaaaaaaaaaabbbbbbbbbbaaabababababbbbb"
+...
