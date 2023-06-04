@@ -1,213 +1,63 @@
+# regular text
 ---
-- stdin : ""
+- stdin : "regular text"
+  stdout: "regular text"
+
+- stdin : "this is line 1\nthis is line 2\nthis is line 3\nthis is line 4\n"
+  stdout: "this is line 1\nthis is line 2\nthis is line 3\nthis is line 4\n"
+
+- stdin : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa - this is a very long line\n"
+  stdout: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa - this is a very long line\n"
+
+# basic syntax tests
+---
+- stdin : "# Heading 1\n"
+  stdout: "<h1>Heading 1</h1>\n"
+
+- stdin : "## Heading 2\n"
+  stdout: "<h2>Heading 2</h2>\n"
+
+- stdin : "### Heading 3\n"
+  stdout: "<h3>Heading 3</h3>\n"
+
+- stdin : "#### Heading 4\n"
+  stdout: "<h4>Heading 4</h4>\n"
+
+- stdin : "##### Heading 5\n"
+  stdout: "<h5>Heading 5</h5>\n"
+
+- stdin : "###### Heading 6\n"
+  stdout: "<h6>Heading 6</h6>\n"
+
+# basic tests for errors
+---
+- stdin : "####### Heading 7\n"
   stdout: ""
+  stderr: "error: line 1 column 7: HTML does not have headings beyond 6 levels\n"
 
-- stdin : "\n"
-  stdout: "\n"
+- stdin : "###################### Heading Umpteenth\n"
+  stdout: ""
+  stderr: "error: line 1 column 7: HTML does not have headings beyond 6 levels\n"
 
-- stdin : "abc"
-  stdout: "abc"
-
-- stdin : "1234"
-  stdout: "1234"
-
-- stdin : "a1b2c3d\n"
-  stdout: "a1b2c3d\n"
-
-# whitespace
+# basic tests for warnings
 ---
 
-- stdin : " "
-  stdout: " "
-  stderr: "warning: line 1 column 1: trailing whitespace\n"
+- stdin : "abc  def"
+  stdout: "abc  def"
+  stderr: "warning: line 1 column 5: multiple spaces are not rendered\n"
 
-- stdin : "  "
-  stdout: "  "
-  stderr: "warning: line 1 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 2: trailing whitespace\n"
+- stdin : "abc\tdef"
+  stdout: "abc\tdef"
+  stderr: "warning: line 1 column 4: tabs are not rendered\n"
 
-- stdin : "   "
-  stdout: "   "
-  stderr: "warning: line 1 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 3: trailing whitespace\n"
+- stdin : "abc                 def"
+  stdout: "abc                 def"
+  stderr: "warning: line 1 column 5: multiple spaces are not rendered\n"
 
-- stdin : "    "
-  stdout: "    "
-  stderr: "warning: line 1 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 4: trailing whitespace\n"
+- stdin : "abc\t\t\t\t\tdef"
+  stdout: "abc\t\t\t\t\tdef"
+  stderr: "warning: line 1 column 4: tabs are not rendered\n"
 
-- stdin : "a                                                                                                                                                                       b"
-  stdout: "a                                                                                                                                                                       b"
-  stderr: "warning: line 1 column 3: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
-
-- stdin : "a   b       c"
-  stdout: "a   b       c"
-  stderr: "warning: line 1 column 3: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 7: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
-
-- stdin : "a b   c d     e             f"
-  stdout: "a b   c d     e             f"
-  stderr: "warning: line 1 column 5: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 11: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 17: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
-
-- stdin : "a b     \n           c"
-  stdout: "a b     \n           c"
-  stderr: "warning: line 1 column 5: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 9: trailing whitespace\nwarning: line 2 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
-
-- stdin : "\t"
-  stdout: "\t"
-  stderr: "warning: line 1 column 1: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 1: trailing whitespace\n"
-
-- stdin : "\t\t"
-  stdout: "\t\t"
-  stderr: "warning: line 1 column 1: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 2: trailing whitespace\n"
-
-- stdin : "a\tb"
-  stdout: "a\tb"
-  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
-
-- stdin : "a\t\t\tb"
-  stdout: "a\t\t\tb"
-  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
-
-- stdin : "a\t\tb\t\t\t\tc"
-  stdout: "a\t\tb\t\t\t\tc"
-  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 5: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
-
-- stdin : "a\tb\tc\t\td\t\te\t\t\tf"
-  stdout: "a\tb\tc\t\td\t\te\t\t\tf"
-  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 4: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 6: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 9: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 12: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
-
-- stdin : "\t "
-  stdout: "\t "
-  stderr: "warning: line 1 column 1: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 2: trailing whitespace\n"
-
-- stdin : "  \t"
-  stdout: "  \t"
-  stderr: "warning: line 1 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 3: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 3: trailing whitespace\n"
-
-- stdin : "\t\n \t   \n"
-  stdout: "\t\n \t   \n"
-  stderr: "warning: line 1 column 1: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 2: trailing whitespace\nwarning: line 2 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 2 column 4: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 2 column 6: trailing whitespace\n"
-
-- stdin : " \n \n \n \t"
-  stdout: " \n \n \n \t"
-  stderr: "warning: line 1 column 2: trailing whitespace\nwarning: line 2 column 2: trailing whitespace\nwarning: line 3 column 2: trailing whitespace\nwarning: line 4 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 4 column 2: trailing whitespace\n"
-
-- stdin : "  \t  \n  "
-  stdout: "  \t  \n  "
-  stderr: "warning: line 1 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 3: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 5: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 6: trailing whitespace\nwarning: line 2 column 2: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 2 column 2: trailing whitespace\n"
-
-- stdin : "a\t\tb\t  c\nd\t\te\t  f\ng\t\th\t  i\n"
-  stdout: "a\t\tb\t  c\nd\t\te\t  f\ng\t\th\t  i\n"
-  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 5: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 7: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 2 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 2 column 5: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 2 column 7: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 3 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 3 column 5: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 3 column 7: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
-
-- stdin : "a\t\t        b    \tc\n"
-  stdout: "a\t\t        b    \tc\n"
-  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 5: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 14: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 17: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\n"
-
-- stdin : "a\t\t\t\t\t\t\t\t\t\t\t\t                                                                     b"
-  stdout: "a\t\t\t\t\t\t\t\t\t\t\t\t                                                                     b"
-  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 15: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\n"
-
-# headings
----
-- stdin : "#"
-  stdout: ""
-  stderr: "syntax error: line 1 column 1: no heading text\n"
-
-- stdin : "#\n"
-  stdout: ""
-  stderr: "syntax error: line 1 column 2: no heading text\n"
-
-- stdin : "\n#\n"
-  stdout: "\n"
-  stderr: "syntax error: line 2 column 2: no heading text\n"
-
-- stdin : " #"
-  stdout: " #"
-
-- stdin : " #\n"
-  stdout: " #\n"
-
-- stdin : "\n #\n"
-  stdout: "\n #\n"
-
-- stdin : "#      "
-  stdout: ""
-  stderr: "warning: line 1 column 3: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nsyntax error: line 1 column 3: no heading text\n"
-
-- stdin : "#\t\t\t\t          \t\t"
-  stdout: ""
-  stderr: "warning: line 1 column 2: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nwarning: line 1 column 7: use of multiple spaces for increased spacing does not work since HTML collapses them down to one space while rendering\nwarning: line 1 column 16: use of tab for increased spacing / alignment does not work since HTML converts tabs to one space while rendering\nsyntax error: line 1 column 17: no heading text\n"
-
-- stdin : "# # #"
-  stdout: "<h1># #</h1>"
-
-- stdin : "## #"
-  stdout: "<h2>#</h2>"
-
-- stdin : "###"
-  stdout: ""
-  stderr: "syntax error: line 1 column 3: no heading text\n"
-
-- stdin : "#a"
-  stdout: "<h1>a</h1>"
-
-- stdin : "# a"
-  stdout: "<h1>a</h1>"
-
-- stdin : "#   a"
-  stdout: "<h1>a</h1>"
-
-- stdin : "#\ta"
-  stdout: "<h1>a</h1>"
-
-- stdin : "#\t\ta"
-  stdout: "<h1>a</h1>"
-
-- stdin : "#\na"
-  stdout: ""
-  stderr: "syntax error: line 1 column 2: no heading text\n"
-
-- stdin : "# a\nb"
-  stdout: "<h1>a</h1>\nb"
-
-- stdin : "#a "
-  stdout: "<h1>a</h1>"
-
-- stdin : "#a   "
-  stdout: "<h1>a</h1>"
-
-- stdin : "#a\t"
-  stdout: "<h1>a</h1>"
-
-- stdin : "#a\t\t"
-  stdout: "<h1>a</h1>"
-
-- stdin : "#a\n\tb"
-  stdout: "<h1>a</h1>\n\tb"
-
-- stdin : "#a\n# b"
-  stdout: "<h1>a</h1>\n<h1>b</h1>"
-
-- stdin : "#a\n\n# b"
-  stdout: "<h1>a</h1>\n\n<h1>b</h1>"
-
-- stdin : "\n## a\n#b"
-  stdout: "\n<h2>a</h2>\n<h1>b</h1>"
-
-- stdin : "###a\n"
-  stdout: "<h3>a</h3>\n"
-
-- stdin : "\n#### b\n"
-  stdout: "\n<h4>b</h4>\n"
-
-- stdin : "a ##### b"
-  stdout: "a ##### b"
-
-- stdin : "a\n##### b\n"
-  stdout: "a\n<h5>b</h5>\n"
-
-- stdin : "\n###### abcd"
-  stdout: "\n<h6>abcd</h6>"
-
-- stdin : "####### abcde\n"
-  stdout: ""
-  stderr: "syntax error: line 1 column 7: HTML does not have headings beyond 6 levels\n"
-...
+- stdin : "abc\t\t\t       \t\t    def"
+  stdout: "abc\t\t\t       \t\t    def"
+  stderr: "warning: line 1 column 4: tabs are not rendered\nwarning: line 1 column 8: multiple spaces are not rendered\nwarning: line 1 column 14: tabs are not rendered\nwarning: line 1 column 17: multiple spaces are not rendered\n"
