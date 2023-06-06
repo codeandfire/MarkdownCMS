@@ -54,14 +54,10 @@ def _wrap(text, width, initial_indent='', subsequent_indent=''):
         text = text[width - len(indent): ]
     return lines
 
-def display(
-        text, textwidth=90,
-        label=None, labelwidth=20,
-        marks=None, markchar='^',
-        showblanks=True,
-        spaceout=True, spacechar=unicodedata.lookup('BLACK CIRCLE')):
-    """
-    Display a piece of text, with an optional label and marks, as follows:
+class CharacterDiff:
+    """Presents character-wise diff markings for a single piece of text.
+
+    Diff format:
 
     <label>        ........................................... <text>
                     ^  ^     ^   ^^^^^^^^^^     ^^^^^^         <marks>
@@ -83,69 +79,142 @@ def display(
                        ^ ^ ^ ^ ^ ^             ^ ^ ^   ^ ^     ^ <marks>
 
     i.e. each character in the text and the marks is separated by a single space.
+
+    If marks=None, then the text is displayed on its own without marks (not really a diff
+    in this case, but just serves to wrap the text and optionally space it out).
+
+    Character used for indicating marks can be changed by specifying markchar.
+    Character used for indicating spaces, in the text, can be changed by specifying
+    spacechar.
     """
 
-    def nspaces(n):
+    def __init__(self, text, marks=None, label=''):
+        self.text = text
+        self.marks = marks
+        self.label = label
+
+        if self.marks is not None:
+            # as many marks as there are characters in the text
+            assert len(self.text) == len(self.marks)
+
+            # due to the above assertion, no marks means no text.
+            # we don't want to display the marks in such a case (it will be a blank line
+            # anyway).
+            # we also write '<blank>' for the text so that it is clear that the text is
+            # blank (and the user is not confused by the absence of any text).
+            if len(self.marks) == 0:
+                self.marks = None
+                self.text = '<blank>'
+
+    @staticmethod
+    def _nspaces(n):
         return ''.join(' ' for _ in range(n))
 
-    if label is not None:
-        assert labelwidth >= len(label)
-    else:
-        label = ''
-        labelwidth = 0
-    if marks is not None:
-        assert len(text) == len(marks)    # as many marks as number of characters in text
-        if len(marks) == 0:     # this will mean len(text) == 0 due to the above assertion
-            marks = None        # don't display any marks
-        else:
-            marks = [(markchar if mark else ' ') for mark in marks]
+    def display(self, textwidth, labelwidth=0, markchar='^',
+                spacechar=unicodedata.lookup('BLACK CIRCLE'), spaceout=False):
+        assert len(self.label) <= labelwidth
+        marks = self.marks[:] if self.marks is not None else None
+        text = self.text[:]
 
-    text = list(text)           # list of characters in text
-    if showblanks:
         if marks is not None:
-            # marks corresponding to \t, \n or \r need an extra space after the mark
-            # because they will now correspond to two characters (\\t, \\n, \\r) instead
-            # of one.
+            marks = [(markchar if mark else ' ') for mark in marks]
             marks = [
                 mark + (' ' if char in ('\t', '\n', '\r') else '')
                 for mark, char in zip(marks, text)
             ]
-        for old, new in zip(
-                (' ', '\t', '\n', '\r'), (spacechar, '\\t', '\\n', '\\r')):
+            marks = (' ' if spaceout else '').join(marks)
+
+        for old, new in ((' ', spacechar), ('\t', '\\t'), ('\n', '\\n'), ('\r', '\\r')):
             text = [new if char == old else char for char in text]
-    text = (' ' if spaceout else '').join(text)
-    if marks is not None:
-        marks = (' ' if spaceout else '').join(marks)
+        text = (' ' if spaceout else '').join(text)
 
-    text = _wrap(
-        label + nspaces(labelwidth - len(label)) + text,
-        labelwidth + textwidth,
-        initial_indent=nspaces(0),
-        subsequent_indent=nspaces(labelwidth))
+        # add the label as part of the text
+        text = self.label + self._nspaces(labelwidth - len(self.label)) + text
+        textwidth += labelwidth
 
-    if marks is not None:
-        marks = _wrap(
-            marks,
-            labelwidth + textwidth,
-            initial_indent=nspaces(labelwidth),
-            subsequent_indent=nspaces(labelwidth))
-        assert len(marks) == len(text)      # both must have the same number of lines
-        # append the marks lines after their corresponding text lines
-        text = [
-            text_line + '\n' + marks_line for text_line, marks_line in zip(text, marks)]
-    print('\n'.join(text))
+        text = _wrap(
+            text, textwidth,
+            initial_indent=self._nspaces(0), subsequent_indent=self._nspaces(labelwidth))
+        if marks is not None:
+            marks = _wrap(
+                marks, textwidth, initial_indent=self._nspaces(labelwidth),
+                subsequent_indent=self._nspaces(labelwidth))
+            assert len(marks) == len(text)      # as many lines of marks as lines of text
+            text = [                            # interleave the text and marks lines
+                text_line + '\n' + marks_line for text_line, marks_line in zip(text, marks)
+            ]
 
-try:                        # recompile before running tests
-    subprocess.run(
-        ['cc', Path(__file__).parent.parent.joinpath('translate.c')],
-        text=True, check=True)
-except subprocess.CalledProcessError:
-    print('Compilation failed.', file=sys.stderr)
-    sys.exit(1)             # exit with code 1 if compilation fails
+        return '\n'.join(text)
 
-matcher = SequenceMatcher()
-Testcase = namedtuple(
-    'Testcase', ['stdin', 'stdout', 'stderr'], defaults=[None, None, ''])
+class CharacterDiffPair:
+    """Generates character-wise diff between two pieces of text.
+
+    Use CharacterDiff to display the diffs corresponding to both of them.
+    """
+
+    _matcher = SequenceMatcher()
+
+    def __init__(self, textA, textB, labelA='', labelB=''):
+        # initially assume all characters are marked
+        marksA = [True for _ in range(len(textA))]
+        marksB = [True for _ in range(len(textB))]
+
+        self._matcher.set_seqs(textA, textB)
+        for block in self._matcher.get_matching_blocks():
+            # characters in the matching block are correct and should not be marked
+            marksA[block.a : block.a + block.size] = [False for _ in range(block.size)]
+            marksB[block.b : block.b + block.size] = [False for _ in range(block.size)]
+
+        self.diffA = CharacterDiff(textA, marksA, labelA)
+        self.diffB = CharacterDiff(textB, marksB, labelB)
+
+    def display(self, *args, **kwargs):
+        return '\n'.join(
+            [self.diffA.display(*args, **kwargs), self.diffB.display(*args, **kwargs)])
+
+class Testcase:
+    """Representation of a test case.
+
+    Holds the input to the translate program (stdin), the true or expected output
+    (true_stdout), the true or expected error (true_stderr), the output received from the
+    translate program (recvd_stdout), the error received from the translate program
+    (recvd_stderr).
+    """
+
+    def __init__(self, stdin, true_stdout, true_stderr=''):
+        self.stdin = stdin
+        self.true_stdout = true_stdout
+        self.true_stderr = true_stderr
+        self.recvd_stdout = None
+        self.recvd_stderr = None
+
+    @property
+    def passed(self):
+        return \
+            self.true_stdout == self.recvd_stdout and self.true_stderr == self.recvd_stderr
+
+    def run(self):
+        run_obj = subprocess.run(
+            [Path(__file__).parent.parent.joinpath('a.out')],
+            input=self.stdin,
+            text=True,
+            capture_output=True)
+        self.recvd_stdout = run_obj.stdout
+        self.recvd_stderr = run_obj.stderr
+
+    def display(self, *args, **kwargs):
+        lines = []
+        lines.append(
+            CharacterDiff(self.stdin, label='stdin').display(*args, **kwargs))
+        if self.true_stdout != self.recvd_stdout:
+            lines.append(CharacterDiffPair(
+                self.true_stdout, self.recvd_stdout, 'stdout (true)', 'stdout (received)'
+            ).display(*args, **kwargs))
+        if self.true_stderr != self.recvd_stderr:
+            lines.append(CharacterDiffPair(
+                self.true_stderr, self.recvd_stderr, 'stderr (true)', 'stderr (received)'
+             ).display(*args, **kwargs))
+        return '\n'.join(lines)
 
 testfile = 'testrunner_testcases.yml' if debug else 'testcases.yml'
 with Path(__file__).parent.joinpath(testfile).open() as f:
@@ -154,32 +223,13 @@ with Path(__file__).parent.joinpath(testfile).open() as f:
 
 count = 0
 for idx, case in enumerate(testcases):
-    case = Testcase(**case)
-    run_obj = subprocess.run(
-        [Path(__file__).parent.parent.joinpath('a.out')],
-        input=case.stdin,
-        text=True,
-        capture_output=True)
-    if run_obj.stdout == case.stdout and run_obj.stderr == case.stderr:
-        count += 1
-        continue
-
-    print(f'Case #{idx+1}')
-    display(text=case.stdin, label='stdin', marks=None, spaceout=spaceout)
-    for field in ['stdout', 'stderr']:
-        sentA, sentB = getattr(run_obj, field), getattr(case, field)
-        if sentA == sentB:
-            continue
-        marksA = [True for _ in range(len(sentA))]  # initially assume all characters are marked
-        marksB = [True for _ in range(len(sentB))]
-        matcher.set_seqs(sentA, sentB)
-        for block in matcher.get_matching_blocks():
-            # the sequences belonging to matching blocks are correct and should not be marked
-            marksA[block.a : block.a + block.size] = [False for _ in range(block.size)]
-            marksB[block.b : block.b + block.size] = [False for _ in range(block.size)]
-        display(text=sentA, label=field, marks=marksA, spaceout=spaceout)
-        display(text=sentB, label='expected', marks=marksB, spaceout=spaceout)
+    case = Testcase(
+        case['stdin'], true_stdout=case['stdout'], true_stderr=case.get('stderr', ''))
+    case.run()
+    print(f'Case #{idx + 1}')
+    print(case.display(textwidth=90, labelwidth=20, spaceout=spaceout))
     print('---')
+    count += (case.passed)
 
 print(f'{count}/{idx+1} passed.')
 sys.exit(0 if count == idx+1 else 2);   # exit with code 2 if some tests fail
