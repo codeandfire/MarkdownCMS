@@ -5,22 +5,109 @@
 #include <stdarg.h>
 
 struct {
-	int lineno;										/* current line number */
-	int colno;										/* current column number */
-	enum {
-		NO_OPERATION, HEADING_NUMBER, HEADING_TEXT
-	} operation;									/* current operation in progress */
-	int heading_level;								/* level (1, 2, 3, 4, 5, 6) of the current heading */
-	enum {
-		ONE_SPACE, TWO_SPACES, ONE_TAB, NO_WHITESPACE
-	} whitespace;									/* current state of whitespace */
-	bool syntax;									/* if the current character is a Markdown syntax character or part of regular text */
-	bool hit_eof;									/* have we encountered EOF or not */
+	int lineno;					/* current line and column numbers */
+	int colno;
+
+	/* states of individual elements */
+	enum { NO_HEADING, HEADING_NUMBER, HEADING_TEXT } heading;
+	enum { ONE_SPACE, TWO_SPACES, ONE_TAB, NO_WHITESPACE } whitespace;
+
+	int heading_level;			/* level of current heading (1, 2, 3, 4, 5, 6) */
+	bool syntax;				/* current character is a syntax character or not */
+	bool hit_eof;				/* EOF encountered or not */
 } state;
 
 enum error_type { HEADING_LEVEL_TOO_HIGH };
+int error(enum error_type);
 
-int error(enum error_type et, ...)
+enum warning_type { MULTIPLE_SPACES_USED, TAB_USED };
+void warning(enum warning_type);
+
+const int MAX_HEADING_LEVEL = 6;
+
+int main()
+{
+	int c;
+
+	state.lineno = state.colno = 1;
+	state.heading = NO_HEADING;
+	state.whitespace = NO_WHITESPACE;
+	state.syntax = false;
+	state.hit_eof = false;
+
+	for (; !state.hit_eof; state.syntax = false, ++state.colno) {
+		switch (c = getchar()) {							/* whitespace handling */
+			case ' ':
+				if (state.whitespace == ONE_SPACE) {
+					state.whitespace = TWO_SPACES;
+					warning(MULTIPLE_SPACES_USED);
+				}
+				else if (state.whitespace != TWO_SPACES)	/* no preceding space(s) */
+					state.whitespace = ONE_SPACE;
+				break;
+
+			case '\t':
+				if (state.whitespace != ONE_TAB) {			/* no preceding tab */
+					state.whitespace = ONE_TAB;
+					warning(TAB_USED);
+				}
+				break;
+
+			default:
+				state.whitespace = NO_WHITESPACE;
+		}
+
+		state.syntax = true;								/* syntax characters */
+		switch (c) {
+			case '#':
+				if (state.colno == 1) {
+					state.heading_level = 1;
+					state.heading = HEADING_NUMBER;
+				}
+				else if (state.heading == HEADING_NUMBER) {
+					if (++state.heading_level > MAX_HEADING_LEVEL)
+						return error(HEADING_LEVEL_TOO_HIGH, MAX_HEADING_LEVEL);
+				}
+				else
+					state.syntax = false;
+				break;
+
+			case ' ':
+				if (state.heading == HEADING_NUMBER) {
+					printf("<h%d>", state.heading_level);
+					state.heading = HEADING_TEXT;
+				}
+				else
+					state.syntax = false;
+				break;
+
+			default:
+				state.syntax = false;
+		}
+
+		if (c == EOF) {
+			state.hit_eof = true;
+			--state.colno;					/* EOF is not to be counted as a character */
+		}
+		else if (c == '\n') {
+			state.colno = 0;				/* start a new line */
+			++state.lineno;
+		}
+		if (c == '\n' || c == EOF)
+			if (state.heading == HEADING_TEXT) {
+				printf("</h%d>", state.heading_level);
+				state.heading = NO_HEADING;
+			}
+		}
+		if (!state.syntax && c != EOF)
+			putchar(c);
+	}
+
+	return 0;
+}
+
+int error(enum error_type et, ...)				/* variable number of arguments (...) contains data associated with
+												   the error */
 {
 	va_list ap;
 
@@ -36,9 +123,8 @@ int error(enum error_type et, ...)
 	return 1;
 }
 
-enum warning_type { MULTIPLE_SPACES_USED, TAB_USED };
-
-void warning(enum warning_type wt)
+void warning(enum warning_type wt)				/* warnings don't have any associated data, hence warning type is the
+												   only argument */
 {
 	fprintf(stderr, "warning: line %d column %d: ", state.lineno, state.colno);
 	switch (wt) {
@@ -50,84 +136,4 @@ void warning(enum warning_type wt)
 			break;
 	}
 	fprintf(stderr, "\n");
-}
-
-const int HEADING_TEXT_BASE_SIZE = 50;
-const int MAX_HEADING_LEVEL = 6;
-
-int main()
-{
-	int c;
-
-	for (
-			state.lineno = state.colno = 1, state.operation = NO_OPERATION, state.hit_eof = false;
-			!state.hit_eof;
-			state.syntax = false, ++state.colno
-	) {
-		if ((c = getchar()) != ' ' && c != '\t')
-			state.whitespace = NO_WHITESPACE;
-
-		switch (c) {
-			case '#':
-				state.syntax = true;
-				if (state.colno == 1) {
-					state.heading_level = 1;
-					state.operation = HEADING_NUMBER;
-				}
-				else if (state.operation == HEADING_NUMBER) {
-					if (++state.heading_level > MAX_HEADING_LEVEL)
-						return error(HEADING_LEVEL_TOO_HIGH, MAX_HEADING_LEVEL);
-				}
-				else
-					state.syntax = false;
-				break;
-
-			case ' ':
-				if (state.operation == HEADING_NUMBER) {
-					state.syntax = true;
-					printf("<h%d>", state.heading_level);
-					state.operation = HEADING_TEXT;
-				}
-				switch (state.whitespace) {
-					case NO_WHITESPACE:
-					case ONE_TAB:
-						state.whitespace = ONE_SPACE;
-						break;
-					case ONE_SPACE:
-						state.whitespace = TWO_SPACES;
-						warning(MULTIPLE_SPACES_USED);
-						break;
-				}
-				break;
-
-			case '\t':
-				switch (state.whitespace) {
-					case NO_WHITESPACE:
-					case ONE_SPACE:
-					case TWO_SPACES:
-						state.whitespace = ONE_TAB;
-						warning(TAB_USED);
-						break;
-				}
-				break;
-
-			case EOF:
-				state.hit_eof = true;
-
-			case '\n':				/* fall-through intended here: on encountering EOF do the same things that
-										would be done on encountering a newline */
-				if (state.operation == HEADING_TEXT) {
-					printf("</h%d>", state.heading_level);
-					state.operation = NO_OPERATION;
-				}
-				state.colno = 0;
-				++state.lineno;
-				break;
-		}
-
-		if (!state.syntax && c != EOF)
-			putchar(c);
-	}
-
-	return 0;
 }
