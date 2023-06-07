@@ -18,7 +18,7 @@ struct {
 } state;
 
 enum error_type { HEADING_LEVEL_TOO_HIGH };
-int error(enum error_type);
+int error(enum error_type, ...);
 
 enum warning_type { MULTIPLE_SPACES_USED, TAB_USED };
 void warning(enum warning_type);
@@ -98,7 +98,6 @@ int main()
 				printf("</h%d>", state.heading_level);
 				state.heading = NO_HEADING;
 			}
-		}
 		if (!state.syntax && c != EOF)
 			putchar(c);
 	}
