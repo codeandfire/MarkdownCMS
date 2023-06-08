@@ -195,7 +195,7 @@ class Testcase:
 
     def run(self):
         run_obj = subprocess.run(
-            [Path(__file__).parent.parent.joinpath('a.out')],
+            [Path(__file__).parent.parent.joinpath('a.out'), '-nodoc'],
             input=self.stdin,
             text=True,
             capture_output=True)

@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdarg.h>
 
+#include "translate.h"
+
 struct {
 	int lineno;					/* current line and column numbers */
 	int colno;
@@ -17,15 +19,20 @@ struct {
 	bool hit_eof;				/* EOF encountered or not */
 } state;
 
+void docstart(FILE *);
+void docend(FILE *);
+
 enum error_type { HEADING_LEVEL_TOO_HIGH };
-int error(enum error_type, ...);
+int error(FILE *, enum error_type, ...);
 
 enum warning_type { MULTIPLE_SPACES_USED, TAB_USED };
-void warning(enum warning_type);
+void warning(FILE *, enum warning_type);
+
+void dumpstate(char);
 
 const int MAX_HEADING_LEVEL = 6;
 
-int main()
+int translate(FILE *fin, FILE *fout, FILE *ferr, struct options *popt)
 {
 	int c;
 
@@ -35,12 +42,17 @@ int main()
 	state.syntax = false;
 	state.hit_eof = false;
 
+#define	html(CALL)	if (!popt->debug) CALL			/* to suppress HTML output if debug is true */
+
+	if (!popt->nodoc)
+		html(docstart(fout));
+
 	for (; !state.hit_eof; state.syntax = false, ++state.colno) {
-		switch (c = getchar()) {							/* whitespace handling */
+		switch (c = getc(fin)) {							/* whitespace handling */
 			case ' ':
 				if (state.whitespace == ONE_SPACE) {
 					state.whitespace = TWO_SPACES;
-					warning(MULTIPLE_SPACES_USED);
+					warning(ferr, MULTIPLE_SPACES_USED);
 				}
 				else if (state.whitespace != TWO_SPACES)	/* no preceding space(s) */
 					state.whitespace = ONE_SPACE;
@@ -49,7 +61,7 @@ int main()
 			case '\t':
 				if (state.whitespace != ONE_TAB) {			/* no preceding tab */
 					state.whitespace = ONE_TAB;
-					warning(TAB_USED);
+					warning(ferr, TAB_USED);
 				}
 				break;
 
@@ -66,7 +78,7 @@ int main()
 				}
 				else if (state.heading == HEADING_NUMBER) {
 					if (++state.heading_level > MAX_HEADING_LEVEL)
-						return error(HEADING_LEVEL_TOO_HIGH, MAX_HEADING_LEVEL);
+						return error(ferr, HEADING_LEVEL_TOO_HIGH, MAX_HEADING_LEVEL);
 				}
 				else
 					state.syntax = false;
@@ -74,7 +86,7 @@ int main()
 
 			case ' ':
 				if (state.heading == HEADING_NUMBER) {
-					printf("<h%d>", state.heading_level);
+					html(fprintf(fout, "<h%d>", state.heading_level));
 					state.heading = HEADING_TEXT;
 				}
 				else
@@ -87,52 +99,76 @@ int main()
 
 		if (c == EOF) {
 			state.hit_eof = true;
-			--state.colno;					/* EOF is not to be counted as a character */
+			--state.colno;						/* EOF is not to be counted as a character */
 		}
 		else if (c == '\n') {
-			state.colno = 0;				/* start a new line */
+			state.colno = 0;					/* start a new line */
 			++state.lineno;
 		}
 		if (c == '\n' || c == EOF)
 			if (state.heading == HEADING_TEXT) {
-				printf("</h%d>", state.heading_level);
+				html(fprintf(fout, "</h%d>", state.heading_level));
 				state.heading = NO_HEADING;
 			}
-		if (!state.syntax && c != EOF)
-			putchar(c);
+
+		if (popt->debug)
+			dumpstate(c);
+		else if (!state.syntax && c != EOF)
+			html(putc(c, fout));				/* echo the character */
 	}
+
+	if (!popt->nodoc)
+		html(docend(fout));
 
 	return 0;
 }
 
-int error(enum error_type et, ...)				/* variable number of arguments (...) contains data associated with
-												   the error */
+void docstart(FILE *fout)							/* start of HTML document */
+{
+	fprintf(fout, "<html>\n");
+	fprintf(fout, "<body>\n");
+}
+
+void docend(FILE *fout)								/* end of HTML document */
+{
+	fprintf(fout, "</body>\n");
+	fprintf(fout, "</html>\n");
+}
+
+int error(FILE *ferr, enum error_type et, ...)		/* variable number of arguments (...) contains data associated with 
+													   the error */
 {
 	va_list ap;
 
 	va_start(ap, et);
-	fprintf(stderr, "error: line %d column %d: ", state.lineno, state.colno);
+	fprintf(ferr, "error: line %d column %d: ", state.lineno, state.colno);
 	switch (et) {
 		case HEADING_LEVEL_TOO_HIGH:
-			fprintf(stderr, "HTML does not have headings beyond %d levels", va_arg(ap, int));
+			fprintf(ferr, "HTML does not have headings beyond %d levels", va_arg(ap, int));
 			break;
 	}
-	fprintf(stderr, "\n");
+	fprintf(ferr, "\n");
 	va_end(ap);
 	return 1;
 }
 
-void warning(enum warning_type wt)				/* warnings don't have any associated data, hence warning type is the
-												   only argument */
+void warning(FILE *ferr, enum warning_type wt)		/* warnings don't have any associated data, hence warning type is
+													   the only argument (apart from ferr) */
 {
-	fprintf(stderr, "warning: line %d column %d: ", state.lineno, state.colno);
+	fprintf(ferr, "warning: line %d column %d: ", state.lineno, state.colno);
 	switch (wt) {
 		case MULTIPLE_SPACES_USED:
-			fprintf(stderr, "multiple spaces are not rendered");
+			fprintf(ferr, "multiple spaces are not rendered");
 			break;
 		case TAB_USED:
-			fprintf(stderr, "tabs are not rendered");
+			fprintf(ferr, "tabs are not rendered");
 			break;
 	}
-	fprintf(stderr, "\n");
+	fprintf(ferr, "\n");
+}
+
+void dumpstate(char c)
+{
+	/* TODO */
+	printf("dump\n");
 }
