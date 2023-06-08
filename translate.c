@@ -171,8 +171,8 @@ void dumpstate(FILE *fout, char c)
 {
 	static bool first_call = true;					/* first call to dumpstate() i.e. the input has just started */
 
-	char *heading_str[] = { "NO_HEADING", "HEADING_LEVEL", "HEADING_TEXT" };
-	char *whitespace_str[] = { "NO_WHITESPACE", "ONE_SPACE", "TWO_SPACES", "ONE_TAB" };
+	const static char *heading_str[] = { "NO_HEADING", "HEADING_LEVEL", "HEADING_TEXT" };
+	const static char *whitespace_str[] = { "NO_WHITESPACE", "ONE_SPACE", "TWO_SPACES", "ONE_TAB" };
 
 	if (first_call) {
 		putc('[', fout);
@@ -184,27 +184,28 @@ void dumpstate(FILE *fout, char c)
 #define	dump_bool(KEY, BOOL)		fprintf(fout, "\"" KEY "\":%s,", BOOL ? "true" : "false")
 #define	dump_str(KEY, STR)			fprintf(fout, "\"" KEY "\":\"%s\",", STR)
 
-	/* the above dump_ macros print the key-value pair with a comma following it, assuming that another key-value pair
-	 * comes next
-	 * JSON is strict about commas and the Python decoder will complain if there is a comma but no following element
-	 * the below macro dumps a bool (the last element to be printed is hit_eof which is a bool) without this comma */
+#define	dump_bool_last(KEY, BOOL) \									/* above dump_ macros print key-value pairs along */
+	fprintf(fout, "\"" KEY "\":%s", BOOL ? "true" : "false")		/* with a comma at the end, in anticipation for a
+																	   following key-value pair;
+																	   for the last key-value pair this comma should not
+																	   be there or it can upset some parsers */
 
-#define	dump_bool_last(KEY, BOOL)	fprintf(fout, "\"" KEY "\":%s", BOOL ? "true" : "false")
-
-	dump_int("charcode", c);						/* printing integer value of character is less tedious/ambiguous
-													   than printing its character form (have to handle escape
-													   sequences, non-printable characters, etc.) */
+	dump_int("charcode", c);							/* printing integer value of character is less tedious/ambiguous
+														   than printing its character form (have to handle escape
+														   sequences, non-printable characters, etc.) */
 	dump_int("lineno", state.lineno);
 	dump_int("colno", state.colno);
-	dump_str("heading", heading_str[state.heading]);
+	dump_str("heading", heading_str[state.heading]);	/* this indexing takes advantage of the fact that enum values
+														   are by default set to 0, 1, 2, ... (in that order) */
 	dump_str("whitespace", whitespace_str[state.whitespace]);
 	dump_int("heading_level", state.heading_level);
 	dump_bool("syntax", state.syntax);
 	dump_bool_last("hit_eof", state.hit_eof);
 
 	putc('}', fout);
-	if (c != EOF)
-		putc(',', fout);
+	
+	if (c != EOF)										/* could also use state.hit_eof to check for EOF, but since */
+		putc(',', fout);								/* state is under testing, that would be logically incorrect */
 	else
 		putc(']', fout);
 }
