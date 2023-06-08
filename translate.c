@@ -171,8 +171,8 @@ void dumpstate(FILE *fout, char c)
 {
 	static bool first_call = true;					/* first call to dumpstate() i.e. the input has just started */
 
-	const static char *heading_str[] = { "NO_HEADING", "HEADING_LEVEL", "HEADING_TEXT" };
-	const static char *whitespace_str[] = { "NO_WHITESPACE", "ONE_SPACE", "TWO_SPACES", "ONE_TAB" };
+	static const char *heading_str[] = { "NO_HEADING", "HEADING_LEVEL", "HEADING_TEXT" };
+	static const char *whitespace_str[] = { "NO_WHITESPACE", "ONE_SPACE", "TWO_SPACES", "ONE_TAB" };
 
 	if (first_call) {
 		putc('[', fout);
@@ -184,11 +184,10 @@ void dumpstate(FILE *fout, char c)
 #define	dump_bool(KEY, BOOL)		fprintf(fout, "\"" KEY "\":%s,", BOOL ? "true" : "false")
 #define	dump_str(KEY, STR)			fprintf(fout, "\"" KEY "\":\"%s\",", STR)
 
-#define	dump_bool_last(KEY, BOOL) \									/* above dump_ macros print key-value pairs along */
-	fprintf(fout, "\"" KEY "\":%s", BOOL ? "true" : "false")		/* with a comma at the end, in anticipation for a
-																	   following key-value pair;
-																	   for the last key-value pair this comma should not
-																	   be there or it can upset some parsers */
+	/* the above dump_ macros print a comma at the end of the key-value pairs, in anticipation for a following pair.
+	 * the last key-value pair should not have this comma or it can upset some parsers. */
+
+#define	dump_bool_last(KEY, BOOL)	fprintf(fout, "\"" KEY "\":%s", BOOL ? "true": "false")
 
 	dump_int("charcode", c);							/* printing integer value of character is less tedious/ambiguous
 														   than printing its character form (have to handle escape
