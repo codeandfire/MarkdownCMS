@@ -45,6 +45,7 @@ int translate(FILE *fin, FILE *fout, FILE *ferr, struct options *popt)
 	state.colno = 0;
 	state.heading = NO_HEADING;
 	state.whitespace = NO_WHITESPACE;
+	state.heading_level = 0;
 	state.syntax = false;
 	state.hit_eof = false;
 
@@ -114,6 +115,7 @@ int translate(FILE *fin, FILE *fout, FILE *ferr, struct options *popt)
 		if (c == '\n' || c == EOF) {
 			if (state.heading == HEADING_TEXT) {
 				html(fprintf(fout, "</h%d>", state.heading_level));
+				state.heading_level = 0;
 				state.heading = NO_HEADING;
 			}
 		}
