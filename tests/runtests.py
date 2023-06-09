@@ -1,5 +1,3 @@
-#!/bin/python3
-
 import sys
 import yaml
 import subprocess
@@ -8,15 +6,12 @@ from pathlib import Path
 from collections import namedtuple
 from difflib import SequenceMatcher
 
-debug = '-debug' in sys.argv[1:]
-spaceout = '-spaceout' in sys.argv[1:]
-
 def _wrap(text, width, initial_indent='', subsequent_indent=''):
     """A text wrapping function.
 
-    The textwrap.wrap() function in the Python standard library is meant for text wrapping
-    but does not do precisely what we want. In particular, it breaks the line on
-    whitespace which messes up the positions of the marks. For example:
+    The textwrap.wrap() function in the Python standard library is meant for text wrapping but does not do precisely
+    what we want. In particular, it breaks the line on whitespace which messes up the positions of the marks. For
+    example:
 
         aaaaaaaaaabbbbbbbbbbbbbbbbb
         ^^^^^^^^^^
@@ -32,16 +27,14 @@ def _wrap(text, width, initial_indent='', subsequent_indent=''):
         bbbbbbbbbbaaaaaaaaaaaaaa
         ^^^^^^^^^^^^^^
 
-    i.e. encountering continuous whitespace after the marks for the a's on the first line,
-    a linebreak is issued and further whitespace is stripped due to which the marks for
-    the a's on the second line are brought to the front of the line resulting in incorrect
-    marking.
+    i.e. encountering continuous whitespace after the marks for the a's on the first line, a linebreak is issued and
+    further whitespace is stripped due to which the marks for the a's on the second line are brought to the front of the
+    line resulting in incorrect marking.
 
-    (Basically textwrap.wrap() is based on standard rules for word wrapping, which is not
-    what we want.)
+    (Basically textwrap.wrap() is based on standard rules for word wrapping, which is not what we want.)
 
-    This function, however, is based on the design of textwrap.wrap() (in particular its
-    initial_indent and subsequent_indent arguments behave the same as that function).
+    This function, however, is based on the design of textwrap.wrap() (in particular its initial_indent and
+    subsequent_indent arguments behave the same as that function).
     """
 
     assert len(initial_indent) < width
@@ -80,12 +73,11 @@ class CharacterDiff:
 
     i.e. each character in the text and the marks is separated by a single space.
 
-    If marks=None, then the text is displayed on its own without marks (not really a diff
-    in this case, but just serves to wrap the text and optionally space it out).
+    If marks=None, then the text is displayed on its own without marks (not really a diff in this case, but just serves
+    to wrap the text and optionally space it out).
 
-    Character used for indicating marks can be changed by specifying markchar.
-    Character used for indicating spaces, in the text, can be changed by specifying
-    spacechar.
+    Character used for indicating marks can be changed by specifying markchar. Character used for indicating spaces, in
+    the text, can be changed by specifying spacechar.
     """
 
     def __init__(self, text, marks=None, label=''):
@@ -98,10 +90,9 @@ class CharacterDiff:
             assert len(self.text) == len(self.marks)
 
             # due to the above assertion, no marks means no text.
-            # we don't want to display the marks in such a case (it will be a blank line
-            # anyway).
-            # we also write '<blank>' for the text so that it is clear that the text is
-            # blank (and the user is not confused by the absence of any text).
+            # we don't want to display the marks in such a case (it will be a blank line anyway).
+            # we also write '<blank>' for the text so that it is clear that the text is blank (and the user is not
+            # confused by the absence of any text).
             if len(self.marks) == 0:
                 self.marks = None
                 self.text = '<blank>'
@@ -110,18 +101,15 @@ class CharacterDiff:
     def _nspaces(n):
         return ''.join(' ' for _ in range(n))
 
-    def display(self, textwidth, labelwidth=0, markchar='^',
-                spacechar=unicodedata.lookup('BLACK CIRCLE'), spaceout=False):
+    def display(self, textwidth, labelwidth=0, markchar='^', spacechar=unicodedata.lookup('BLACK CIRCLE'),
+                spaceout=False):
         assert len(self.label) <= labelwidth
         marks = self.marks[:] if self.marks is not None else None
         text = self.text[:]
 
         if marks is not None:
             marks = [(markchar if mark else ' ') for mark in marks]
-            marks = [
-                mark + (' ' if char in ('\t', '\n', '\r') else '')
-                for mark, char in zip(marks, text)
-            ]
+            marks = [mark + (' ' if char in ('\t', '\n', '\r') else '') for mark, char in zip(marks, text)]
             marks = (' ' if spaceout else '').join(marks)
 
         for old, new in ((' ', spacechar), ('\t', '\\t'), ('\n', '\\n'), ('\r', '\\r')):
@@ -132,17 +120,13 @@ class CharacterDiff:
         text = self.label + self._nspaces(labelwidth - len(self.label)) + text
         textwidth += labelwidth
 
-        text = _wrap(
-            text, textwidth,
-            initial_indent=self._nspaces(0), subsequent_indent=self._nspaces(labelwidth))
+        text = _wrap(text, textwidth, initial_indent=self._nspaces(0), subsequent_indent=self._nspaces(labelwidth))
         if marks is not None:
-            marks = _wrap(
-                marks, textwidth, initial_indent=self._nspaces(labelwidth),
-                subsequent_indent=self._nspaces(labelwidth))
+            marks = _wrap(marks, textwidth, initial_indent=self._nspaces(labelwidth),
+                          subsequent_indent=self._nspaces(labelwidth))
             assert len(marks) == len(text)      # as many lines of marks as lines of text
-            text = [                            # interleave the text and marks lines
-                text_line + '\n' + marks_line for text_line, marks_line in zip(text, marks)
-            ]
+            # interleave the marks and text lines
+            text = [text_line + '\n' + marks_line for text_line, marks_line in zip(text, marks)]
 
         return '\n'.join(text)
 
@@ -169,51 +153,43 @@ class CharacterDiffPair:
         self.diffB = CharacterDiff(textB, marksB, labelB)
 
     def display(self, *args, **kwargs):
-        return '\n'.join(
-            [self.diffA.display(*args, **kwargs), self.diffB.display(*args, **kwargs)])
+        return '\n'.join([self.diffA.display(*args, **kwargs), self.diffB.display(*args, **kwargs)])
 
 class Testcase:
     """Representation of a test case.
 
-    Holds the input to the translate program (stdin), the true or expected output
-    (true_stdout), the true or expected error (true_stderr), the output received from the
-    translate program (recvd_stdout), the error received from the translate program
-    (recvd_stderr).
+    Holds the input to the translate program (stdin), the true or expected output (true_stdout), the true or expected
+    error (true_stderr), the output given from the translate program (given_stdout), the error given from the translate
+    program (given_stderr).
     """
 
     def __init__(self, stdin, true_stdout, true_stderr=''):
         self.stdin = stdin
         self.true_stdout = true_stdout
         self.true_stderr = true_stderr
-        self.recvd_stdout = None
-        self.recvd_stderr = None
+        self.given_stdout = None
+        self.given_stderr = None
 
     @property
     def passed(self):
-        return \
-            self.true_stdout == self.recvd_stdout and self.true_stderr == self.recvd_stderr
+        return self.true_stdout == self.given_stdout and self.true_stderr == self.given_stderr
 
     def run(self):
         run_obj = subprocess.run(
-            [Path(__file__).parent.parent.joinpath('a.out'), '-nodoc'],
-            input=self.stdin,
-            text=True,
+            [Path(__file__).parent.parent.joinpath('a.out'), '-nodoc'], input=self.stdin, text=True,
             capture_output=True)
-        self.recvd_stdout = run_obj.stdout
-        self.recvd_stderr = run_obj.stderr
+        self.given_stdout = run_obj.stdout
+        self.given_stderr = run_obj.stderr
 
     def display(self, *args, **kwargs):
         lines = []
-        lines.append(
-            CharacterDiff(self.stdin, label='stdin').display(*args, **kwargs))
-        if self.true_stdout != self.recvd_stdout:
+        lines.append(CharacterDiff(self.stdin, label='stdin').display(*args, **kwargs))
+        if self.true_stdout != self.given_stdout:
             lines.append(CharacterDiffPair(
-                self.true_stdout, self.recvd_stdout, 'stdout (true)', 'stdout (received)'
-            ).display(*args, **kwargs))
-        if self.true_stderr != self.recvd_stderr:
+                self.true_stdout, self.given_stdout, 'stdout (true)', 'stdout (given)').display(*args, **kwargs))
+        if self.true_stderr != self.given_stderr:
             lines.append(CharacterDiffPair(
-                self.true_stderr, self.recvd_stderr, 'stderr (true)', 'stderr (received)'
-             ).display(*args, **kwargs))
+                self.true_stderr, self.given_stderr, 'stderr (true)', 'stderr (given)').display(*args, **kwargs))
         return '\n'.join(lines)
 
 testfile = 'testrunner_testcases.yml' if debug else 'testcases.yml'
@@ -223,8 +199,7 @@ with Path(__file__).parent.joinpath(testfile).open() as f:
 
 count = 0
 for idx, case in enumerate(testcases):
-    case = Testcase(
-        case['stdin'], true_stdout=case['stdout'], true_stderr=case.get('stderr', ''))
+    case = Testcase(case['stdin'], true_stdout=case['stdout'], true_stderr=case.get('stderr', ''))
     case.run()
     print(f'Case #{idx + 1}')
     print(case.display(textwidth=90, labelwidth=20, spaceout=spaceout))
