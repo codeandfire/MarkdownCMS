@@ -7,36 +7,6 @@ from collections import namedtuple
 from difflib import SequenceMatcher
 
 def _wrap(text, width, initial_indent='', subsequent_indent=''):
-    """A text wrapping function.
-
-    The textwrap.wrap() function in the Python standard library is meant for text wrapping but does not do precisely
-    what we want. In particular, it breaks the line on whitespace which messes up the positions of the marks. For
-    example:
-
-        aaaaaaaaaabbbbbbbbbbbbbbbbb
-        ^^^^^^^^^^
-
-        bbbbbbbbbbaaaaaaaaaaaaaa
-                  ^^^^^^^^^^^^^^
-
-    The a's are meant to be marked, as shown above. But with textwrap.wrap() we will get:
-
-        aaaaaaaaaabbbbbbbbbbbbbbbbb
-        ^^^^^^^^^^
-
-        bbbbbbbbbbaaaaaaaaaaaaaa
-        ^^^^^^^^^^^^^^
-
-    i.e. encountering continuous whitespace after the marks for the a's on the first line, a linebreak is issued and
-    further whitespace is stripped due to which the marks for the a's on the second line are brought to the front of the
-    line resulting in incorrect marking.
-
-    (Basically textwrap.wrap() is based on standard rules for word wrapping, which is not what we want.)
-
-    This function, however, is based on the design of textwrap.wrap() (in particular its initial_indent and
-    subsequent_indent arguments behave the same as that function).
-    """
-
     assert len(initial_indent) < width
     assert len(subsequent_indent) < width
 
@@ -50,34 +20,8 @@ def _wrap(text, width, initial_indent='', subsequent_indent=''):
 class CharacterDiff:
     """Presents character-wise diff markings for a single piece of text.
 
-    Diff format:
-
-    <label>        ........................................... <text>
-                    ^  ^     ^   ^^^^^^^^^^     ^^^^^^         <marks>
-                   ........................................... <text>
-                       ^^^^^^^^     ^^^^^^^^^^     ^^^ ^^    ^ <marks>
-                   ........................................... <text>
-                   ^^^^^^^   ^^^^         ^^^^^^       ^^^^^^^ <marks>
-                   ........................................... <text>
-                               ^^^^^^^^^^^^^^^^^^^^^^^^^    ^^ <marks>
-
-    | ----------- || ---------------------------------------- |
-      labelwidth                    textwidth
-
-    With spaceout=True:
-
-    <label>        . . . . . . . . . . . . . . . . . . . . . . . <text>
-                     ^     ^     ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^     ^     <marks>
-                   . . . . . . . . . . . . . . . . . . . . . . . <text>
-                       ^ ^ ^ ^ ^ ^             ^ ^ ^   ^ ^     ^ <marks>
-
-    i.e. each character in the text and the marks is separated by a single space.
-
     If marks=None, then the text is displayed on its own without marks (not really a diff in this case, but just serves
     to wrap the text and optionally space it out).
-
-    Character used for indicating marks can be changed by specifying markchar. Character used for indicating spaces, in
-    the text, can be changed by specifying spacechar.
     """
 
     def __init__(self, text, marks=None, label=''):
