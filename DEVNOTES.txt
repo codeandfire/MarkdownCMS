@@ -1,0 +1,138 @@
+[tests/runtests.py] Why not use textwrap.wrap() for wrapping text (instead of the custom _wrap() function):
+
+	The textwrap.wrap() function in the Python standard library is meant for text wrapping but does not do precisely
+	what we want. In particular, it breaks the line on whitespace which messes up the positions of the marks. For
+	example:
+
+		aaaaaaaaaabbbbbbbbbbbbbbbbb
+		^^^^^^^^^^
+
+		bbbbbbbbbbaaaaaaaaaaaaaa
+		^^^^^^^^^^^^^^
+
+	The a's are meant to be marked, as shown above. But with textwrap.wrap() we will get:
+
+		aaaaaaaaaabbbbbbbbbbbbbbbbb
+		^^^^^^^^^^
+		
+		bbbbbbbbbbaaaaaaaaaaaaaa
+		^^^^^^^^^^^^^^
+
+	i.e. encountering continuous whitespace after the marks for the a's on the first line, a linebreak is issued and
+	further whitespace is stripped due to which the marks for the a's on the second line are brought to the front of the
+	line resulting in incorrect marking.
+
+	Basically textwrap.wrap() is based on standard rules for word wrapping, which is not what we want.
+
+	This function, however, is based on the design of textwrap.wrap() (in particular its initial_indent and
+	subsequent_indent arguments behave the same as that function).
+
+[tests/runtests.py] Character diff format:
+
+	The format is a label on the left, with alternating lines of text and marks on the right:
+
+	<label>        ........................................... <text>
+	                ^  ^     ^   ^^^^^^^^^^     ^^^^^^         <marks>
+	               ........................................... <text>
+	                   ^^^^^^^^     ^^^^^^^^^^     ^^^ ^^    ^ <marks>
+	               ........................................... <text>
+	               ^^^^^^^   ^^^^         ^^^^^^       ^^^^^^^ <marks>
+	               ........................................... <text>
+	                           ^^^^^^^^^^^^^^^^^^^^^^^^^    ^^ <marks>
+	
+	| ----------- || ---------------------------------------- |
+	  labelwidth                    textwidth
+	
+	With spaceout=True, each character in the text and the marks is separated by a single space:
+	
+	<label>        . . . . . . . . . . . . . . . . . . . . . . . <text>
+	                 ^     ^     ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^     ^     <marks>
+	               . . . . . . . . . . . . . . . . . . . . . . . <text>
+	                   ^ ^ ^ ^ ^ ^             ^ ^ ^   ^ ^     ^ <marks>
+
+[translate.c] UTF-8 support and the is_new_utf8char() function:
+
+	UTF-8 is a backward compatible (with ASCII) version of Unicode: characters in the ASCII set are represented the same
+	way in UTF-8 as they were in ASCII, i.e. within one byte; only characters outside the ASCII set potentially occupy
+	more than one byte. Therefore, we theorize that as long as the syntax characters lie within the ASCII subset, our
+	code will continue to work for UTF-8 even though C has no builtin explicit support for UTF-8.
+
+		- The single quotes ' ' notation in C for characters is meant only for ASCII characters (it can be thought of as
+		  replacing the character within quotes by its numeric value in the ASCII encoding). Therefore, using a Unicode
+		  version other than UTF-8, or having syntax characters that are not in ASCII, will not work. (The switch-case
+		  statements in the translate() function make extensive use of this single quotes notation.)
+
+		- The char data type in C is just a byte, so for UTF-8 characters that span more than one byte and are part of
+		  regular text (not syntax characters), it will just echo those bytes to the output and the UTF-8 character
+		  should be rendered as usual.
+
+	(Please note that you would almost never make a non-ASCII character a syntax character, so that caveat is not a
+	problem at all.)
+
+	One issue that arises is how to increment colno. If all characters were ASCII we would increment colno once per
+	iteration of the loop in translate(). With characters that span several bytes, this can increment colno several
+	times for what the user perceives as one character.
+
+	The idea then is to decipher where a new UTF-8 character begins and increment colno only then. It turns out that
+	this can be achieved without any external libraries/tooling. Each byte of UTF-8 text starts with a combination of
+	bits that indicate information about the same:
+
+		0xxxxxxx		first byte of new UTF-8 character spanning only one byte (this byte)
+		11xxxxxx		first byte of new UTF-8 character spanning two bytes
+		111xxxxx		first byte of new UTF-8 character spanning three bytes
+		1111xxxx		first byte of new UTF-8 character spanning four bytes
+		10xxxxxx		not a new UTF-8 character; continuation of the previous byte
+
+	The last combination suffices for our purposes: if a byte does NOT start with the bits 10, then it is a new UTF-8
+	character. This in turn can be checked by checking that the byte value does NOT lie between the numbers:
+
+		binary			hex
+		10000000		80
+		10111111		BF
+
+[translate.c] first_call variable in dumpstate() function:
+
+	The JSON dump is an array of state objects. We have to know when to write the opening square bracket [ of this
+	array. This is done by keeping track of the first call to this function. Initially the static variable first_call is
+	set to true, so when the first call does happen, this variable will be true. It is immediately set to false so for
+	all remaining calls it remains false.
+
+[translate.c] The heading_str, whitespace_str, etc. arrays in dumpstate() function:
+
+	Dumping the state struct involves converting enum values like NO_HEADING, TWO_SPACES etc. into strings of the form
+	"NO_HEADING", "TWO_SPACES" etc. Doing this via switch-case statements will occupy a whole lot of lines. A hack is to
+	depend on the fact that values in an enum are set to 0, 1, 2, ... in that order. For example, in the heading enum:
+
+		NO_HEADING = 0, HEADING_LEVEL = 1, HEADING_TEXT = 2
+
+	And then, if we have an array:
+
+		{ "NO_HEADING", "HEADING_LEVEL", "HEADING_TEXT" }
+
+	on indexing this array with the enum value, we will get the corresponding string form.
+
+[translate.c] Printing charcode in dumpstate() function:
+
+	Along with dumping the state struct we need to give some indication of the character belonging to the current
+	iteration. Printing the character itself is tedious because of things like escape sequences, non-printable
+	characters, Unicode etc. A hex code is a much more unambiguous way of identifying the character.
+
+[translate.c] dump_bool_last macro in dumpstate() function:
+
+	JSON is strict about commas. For example:
+
+		"key1":"value1", "key2":"value2",
+	
+	If there is no "key3":"value3" after the last comma, then JSON parsers should typically throw an error.
+
+	The dump_ macros other than dump_bool_last print a key-value pair, followed by a comma, for the next key-value pair.
+	The last element to be dumped is hit_eof, which is a bool. Therefore we write a separate macro that prints a bool
+	without that trailing comma since there is no next key-value pair following this one.
+
+[translate.c] Checking c != EOF in dumpstate() function:
+
+	The only point we want to highlight here is that we could also equivalently use state.hit_eof to check whether we
+	have reached EOF or not, but since dumpstate() is used to debug the state struct, it seems logically incorrect to
+	use a property of the state struct to verify the same. (For all you know, the state struct could have a bug where
+	state.hit_eof is set incorrectly: although the chances of this happening are super low because it seems difficult to
+	mess up a thing as simple as setting state.hit_eof when c == EOF in translate()!)
