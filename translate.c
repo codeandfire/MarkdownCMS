@@ -41,8 +41,7 @@ int translate(FILE *fin, FILE *fout, FILE *ferr, struct options *popt)
 {
 	char c;
 
-	state.lineno = 1;
-	state.colno = 0;
+	state.lineno = state.colno = 1;
 	state.heading = NO_HEADING;
 	state.whitespace = NO_WHITESPACE;
 	state.syntax = false;
