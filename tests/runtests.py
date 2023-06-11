@@ -86,10 +86,16 @@ class BlackboxTest:
     @classmethod
     def load(cls, test_file):
         with Path(test_file).open() as f:
-            tests = yaml.safe_load_all(f)
-            tests = [test for doc in tests for test in doc]                     # doc = YAML document
+            contents = yaml.safe_load(f)
+            errors, tests = contents['errors'], contents['tests']
+            for test in tests:
+                if 'stderr' in test:
+                    for error, msg in errors.items():
+                        test['stderr'] = test['stderr'].replace('$' + error, msg)
+                else:
+                    test['stderr'] = ''                     # stderr if omitted is assumed to be blank
             tests = [
-                cls(id_=idx+1, stdin=test['stdin'], true_stdout=test['stdout'], true_stderr=test.get('stderr', ''))
+                cls(id_=idx+1, stdin=test['stdin'], true_stdout=test['stdout'], true_stderr=test['stderr'])
                 for idx, test in enumerate(tests)]
             return tests
 

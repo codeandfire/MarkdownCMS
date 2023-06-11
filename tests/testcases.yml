@@ -1,63 +1,65 @@
-# regular text
----
-- stdin : "regular text"
-  stdout: "regular text"
+errors:     # warnings included
+  HeadingLevelTooHigh: "HTML does not have headings beyond 6 levels"
+  MultipleSpacesUsed: "multiple spaces are not rendered"
+  TabUsed: "tabs are not rendered"
 
-- stdin : "this is line 1\nthis is line 2\nthis is line 3\nthis is line 4\n"
-  stdout: "this is line 1\nthis is line 2\nthis is line 3\nthis is line 4\n"
+tests:
+  # regular text
+  - stdin : "regular text"
+    stdout: "regular text"
 
-- stdin : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa - this is a very long line\n"
-  stdout: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa - this is a very long line\n"
+  - stdin : "this is line 1\nthis is line 2\nthis is line 3\nthis is line 4\n"
+    stdout: "this is line 1\nthis is line 2\nthis is line 3\nthis is line 4\n"
 
-# basic syntax tests
----
-- stdin : "# Heading 1\n"
-  stdout: "<h1>Heading 1</h1>\n"
+  - stdin : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa - this is a very long line\n"
+    stdout: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa - this is a very long line\n"
 
-- stdin : "## Heading 2\n"
-  stdout: "<h2>Heading 2</h2>\n"
+  # basic syntax tests
+  - stdin : "# Heading 1\n"
+    stdout: "<h1>Heading 1</h1>\n"
 
-- stdin : "### Heading 3\n"
-  stdout: "<h3>Heading 3</h3>\n"
+  - stdin : "## Heading 2\n"
+    stdout: "<h2>Heading 2</h2>\n"
 
-- stdin : "#### Heading 4\n"
-  stdout: "<h4>Heading 4</h4>\n"
+  - stdin : "### Heading 3\n"
+    stdout: "<h3>Heading 3</h3>\n"
 
-- stdin : "##### Heading 5\n"
-  stdout: "<h5>Heading 5</h5>\n"
+  - stdin : "#### Heading 4\n"
+    stdout: "<h4>Heading 4</h4>\n"
 
-- stdin : "###### Heading 6\n"
-  stdout: "<h6>Heading 6</h6>\n"
+  - stdin : "##### Heading 5\n"
+    stdout: "<h5>Heading 5</h5>\n"
 
-# basic tests for errors
----
-- stdin : "####### Heading 7\n"
-  stdout: ""
-  stderr: "error: line 1 column 7: HTML does not have headings beyond 6 levels\n"
+  - stdin : "###### Heading 6\n"
+    stdout: "<h6>Heading 6</h6>\n"
 
-- stdin : "###################### Heading Umpteenth\n"
-  stdout: ""
-  stderr: "error: line 1 column 7: HTML does not have headings beyond 6 levels\n"
+  # basic tests for errors
+  - stdin : "####### Heading 7\n"
+    stdout: ""
+    stderr: "error: line 1 column 7: $HeadingLevelTooHigh\n"
 
-# basic tests for warnings
----
+  - stdin : "###################### Heading Umpteenth\n"
+    stdout: ""
+    stderr: "error: line 1 column 7: $HeadingLevelTooHigh\n"
 
-- stdin : "abc  def"
-  stdout: "abc  def"
-  stderr: "warning: line 1 column 5: multiple spaces are not rendered\n"
+  # basic tests for warnings
 
-- stdin : "abc\tdef"
-  stdout: "abc\tdef"
-  stderr: "warning: line 1 column 4: tabs are not rendered\n"
+  - stdin : "abc  def"
+    stdout: "abc  def"
+    stderr: "warning: line 1 column 5: $MultipleSpacesUsed\n"
 
-- stdin : "abc                 def"
-  stdout: "abc                 def"
-  stderr: "warning: line 1 column 5: multiple spaces are not rendered\n"
+  - stdin : "abc\tdef"
+    stdout: "abc\tdef"
+    stderr: "warning: line 1 column 4: $TabUsed\n"
 
-- stdin : "abc\t\t\t\t\tdef"
-  stdout: "abc\t\t\t\t\tdef"
-  stderr: "warning: line 1 column 4: tabs are not rendered\n"
+  - stdin : "abc                 def"
+    stdout: "abc                 def"
+    stderr: "warning: line 1 column 5: $MultipleSpacesUsed\n"
 
-- stdin : "abc\t\t\t       \t\t    def"
-  stdout: "abc\t\t\t       \t\t    def"
-  stderr: "warning: line 1 column 4: tabs are not rendered\nwarning: line 1 column 8: multiple spaces are not rendered\nwarning: line 1 column 14: tabs are not rendered\nwarning: line 1 column 17: multiple spaces are not rendered\n"
+  - stdin : "abc\t\t\t\t\tdef"
+    stdout: "abc\t\t\t\t\tdef"
+    stderr: "warning: line 1 column 4: $TabUsed\n"
+
+  - stdin : "abc\t\t\t       \t\t    def"
+    stdout: "abc\t\t\t       \t\t    def"
+    stderr: "warning: line 1 column 4: $TabUsed\nwarning: line 1 column 8: $MultipleSpacesUsed\nwarning: line 1 column 14: $TabUsed\nwarning: line 1 column 17: $MultipleSpacesUsed\n"
