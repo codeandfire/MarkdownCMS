@@ -107,6 +107,8 @@ int translate(FILE *fin, FILE *fout, FILE *ferr, struct options *popt)
 						state.heading_level = 0;
 						state.heading = NO_HEADING;
 					}
+					state.syntax = false;					/* only syntax characters that have to be separately handled
+															   as regular text */
 					break;
 
 				case ' ':
