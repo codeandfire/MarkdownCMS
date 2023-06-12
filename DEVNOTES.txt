@@ -136,3 +136,27 @@
 	use a property of the state struct to verify the same. (For all you know, the state struct could have a bug where
 	state.hit_eof is set incorrectly: although the chances of this happening are super low because it seems difficult to
 	mess up a thing as simple as setting state.hit_eof when c == EOF in translate()!)
+
+[translate.c] Syntax characters and escaping:
+
+	We call any character that is part of the syntax of our language, a "syntax character". For example: a heading is
+	identified by a consecutive sequence of # marks at the start of a line, followed by a single space, and then the
+	contents of the heading, terminated by either an end-of-line or end-of-file character. From this one rule, all of
+	the characters #, space, \n and EOF become syntax characters. The entire set of syntax characters comprises the
+	syntax characters coming from all of our syntax rules.
+
+	The question is that these characters may also be used by the user as part of "regular text", i.e. the content of
+	the document that they are writing. For e.g., if a user writes the text
+
+		#1
+
+	somewhere in his/her document, then will our program take this # to mean a heading or not? One way to explicitly
+	signal that a syntax character is, in a given situation, used as a part of "regular text" and not syntax, is to
+	escape the character, i.e. precede it with a backslash like so:
+
+		\#1
+
+	Our policy is that syntax characters need not be escaped in all situations: in many situations we try to infer
+	whether they are part of regular text or not. In more ambiguous situations, or situations that are difficult to
+	implement inference for, they have to be explicitly escaped. If they are escaped in a situation that did not require
+	an escape (inference was possible) - that is also fine.

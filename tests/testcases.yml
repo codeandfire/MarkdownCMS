@@ -1,50 +1,21 @@
 errors:     # warnings included
   HeadingLevelTooHigh: "HTML does not have headings beyond 6 levels"
-  MultipleSpacesUsed: "multiple spaces are not rendered"
-  TabUsed: "tabs are not rendered"
+  MultipleSpacesUsed : "multiple spaces are not rendered"
+  TabUsed            : "tabs are not rendered"
+  HeadingSyntaxSpace : "# marks must be followed by a single space to indicate a heading"
 
 tests:
-  # regular text
-  - stdin : "regular text"
+  - stdin : "regular text"                            # regular text
     stdout: "regular text"
 
   - stdin : "this is line 1\nthis is line 2\nthis is line 3\nthis is line 4\n"
     stdout: "this is line 1\nthis is line 2\nthis is line 3\nthis is line 4\n"
 
+  # should be able to handle lines of any length
   - stdin : "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa - this is a very long line\n"
     stdout: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa - this is a very long line\n"
 
-  # basic syntax tests
-  - stdin : "# Heading 1\n"
-    stdout: "<h1>Heading 1</h1>\n"
-
-  - stdin : "## Heading 2\n"
-    stdout: "<h2>Heading 2</h2>\n"
-
-  - stdin : "### Heading 3\n"
-    stdout: "<h3>Heading 3</h3>\n"
-
-  - stdin : "#### Heading 4\n"
-    stdout: "<h4>Heading 4</h4>\n"
-
-  - stdin : "##### Heading 5\n"
-    stdout: "<h5>Heading 5</h5>\n"
-
-  - stdin : "###### Heading 6\n"
-    stdout: "<h6>Heading 6</h6>\n"
-
-  # basic tests for errors
-  - stdin : "####### Heading 7\n"
-    stdout: ""
-    stderr: "error: line 1 column 7: $HeadingLevelTooHigh\n"
-
-  - stdin : "###################### Heading Umpteenth\n"
-    stdout: ""
-    stderr: "error: line 1 column 7: $HeadingLevelTooHigh\n"
-
-  # basic tests for warnings
-
-  - stdin : "abc  def"
+  - stdin : "abc  def"                                # warnings involving whitespace
     stdout: "abc  def"
     stderr: "warning: line 1 column 5: $MultipleSpacesUsed\n"
 
@@ -63,3 +34,90 @@ tests:
   - stdin : "abc\t\t\t       \t\t    def"
     stdout: "abc\t\t\t       \t\t    def"
     stderr: "warning: line 1 column 4: $TabUsed\nwarning: line 1 column 8: $MultipleSpacesUsed\nwarning: line 1 column 14: $TabUsed\nwarning: line 1 column 17: $MultipleSpacesUsed\n"
+
+  - stdin : "# Heading 1\n"                           # headings from 1 to 6
+    stdout: "<h1>Heading 1</h1>\n"
+
+  - stdin : "## Heading 2"
+    stdout: "<h2>Heading 2</h2>"
+
+  - stdin : "### Heading 3\n"
+    stdout: "<h3>Heading 3</h3>\n"
+
+  - stdin : "#### Heading 4"
+    stdout: "<h4>Heading 4</h4>"
+
+  - stdin : "##### Heading 5\n"
+    stdout: "<h5>Heading 5</h5>\n"
+
+  - stdin : "###### Heading 6"
+    stdout: "<h6>Heading 6</h6>"
+
+  - stdin : "####### Heading 7\n"                     # headings beyond 6
+    stdout: ""
+    stderr: "error: line 1 column 7: $HeadingLevelTooHigh\n"
+
+  - stdin : "###################### Heading Umpteenth"
+    stdout: ""
+    stderr: "error: line 1 column 7: $HeadingLevelTooHigh\n"
+
+  - stdin : "not a # heading\n"                       # distinguishing between #'s in regular text and headings
+    stdout: "not a # heading\n"
+
+  - stdin : " ### not a heading"
+    stdout: " ### not a heading"
+
+  - stdin : "not a ############ heading"
+    stdout: "not a ############ heading"
+
+  - stdin : "## ######\n"
+    stdout: "<h2>######</h2>\n"
+
+  - stdin : "\\# not a heading\n"                     # escaping #'s
+    stdout: "# not a heading\n"
+
+  - stdin : "\\#\\# not a heading\n"
+    stdout: "## not a heading\n"
+
+  - stdin : "not a \\# heading\n"                     # escaping #'s despite the escape not being strictly needed
+    stdout: "not a # heading\n"
+
+  - stdin : "not a heading \\#\\#\\#\\#\\#\\#\\#\\#"
+    stdout: "not a heading ########"
+
+  - stdin : "### \\#\\#"
+    stdout: "<h3>##</h3>"
+
+  - stdin : "#space required"                         # forgotten space after # marks
+    stdout: ""
+    stderr: "error: line 1 column 2: $HeadingSyntaxSpace\n"
+
+  - stdin : "######space required"
+    stdout: ""
+    stderr: "error: line 1 column 7: $HeadingSyntaxSpace\n"
+
+  - stdin : "###\\# some text\n"                      # a twisted edge case that should be recognized as a forgotten space
+    stdout: ""
+    stderr: "error: line 1 column 4: $HeadingSyntaxSpace\n"
+
+  - stdin : "#### \n"                                 # empty heading text
+    stdout: "<h4></h4>\n"
+
+  - stdin : "##### "
+    stdout: "<h5></h5>"
+
+  - stdin : "# Heading     \n"                        # whitespace warnings in the context of headings
+    stdout: "<h1>Heading     </h1>\n"
+    stderr: "warning: line 1 column 11: $MultipleSpacesUsed\n"
+
+  - stdin : "##  Heading"                             # more than one space following # marks should be recognized as a whitespace warning; one space should be counted as syntax and not rendered
+    stdout: "<h2> Heading</h2>"
+    stderr: "warning: line 1 column 4: $MultipleSpacesUsed\n"
+
+  - stdin : "###     Heading\n"
+    stdout: "<h3>    Heading</h3>\n"
+    stderr: "warning: line 1 column 5: $MultipleSpacesUsed\n"
+
+  - stdin : "###\tHeading\n"                          # tab after # marks should be recognized as a forgotten space; the warning for tab should come before that (since execution will stop at an error)
+    stdout: ""
+    stderr: "warning: line 1 column 4: $TabUsed\nerror: line 1 column 4: $HeadingSyntaxSpace\n"

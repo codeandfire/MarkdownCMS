@@ -7,16 +7,16 @@
 #include "translate.h"
 
 struct {
-	int lineno;					/* current line and column numbers */
+	int lineno;
 	int colno;
 
-	/* states of individual elements */
 	enum { NO_HEADING, HEADING_LEVEL, HEADING_TEXT } heading;
 	enum { NO_WHITESPACE, ONE_SPACE, TWO_SPACES, ONE_TAB } whitespace;
 
-	int heading_level;			/* level of current heading (1, 2, 3, 4, 5, 6) */
-	bool syntax;				/* current character is a syntax character or not */
-	bool hit_eof;				/* EOF encountered or not */
+	int heading_level;
+	bool syntax;
+	bool escaped;
+	bool hit_eof;
 } state;
 
 void docstart(FILE *);
@@ -24,7 +24,7 @@ void docend(FILE *);
 
 void dumpstate(FILE *, char);
 
-enum error_type { HEADING_LEVEL_TOO_HIGH };
+enum error_type { HEADING_LEVEL_TOO_HIGH, HEADING_SYNTAX_SPACE };
 int error(FILE *, enum error_type, ...);
 
 enum warning_type { MULTIPLE_SPACES_USED, TAB_USED };
@@ -46,6 +46,7 @@ int translate(FILE *fin, FILE *fout, FILE *ferr, struct options *popt)
 	state.whitespace = NO_WHITESPACE;
 	state.heading_level = 0;
 	state.syntax = false;
+	state.escaped = false;
 	state.hit_eof = false;
 
 #define	html(CALL)	if (!popt->debug) CALL			/* to suppress HTML output if debug is true */
@@ -75,54 +76,69 @@ int translate(FILE *fin, FILE *fout, FILE *ferr, struct options *popt)
 				state.whitespace = NO_WHITESPACE;
 		}
 
-		state.syntax = true;								/* syntax characters */
-		switch (c) {
-			case '#':
-				if (state.colno == 1) {
-					state.heading_level = 1;
-					state.heading = HEADING_LEVEL;
-				}
-				else if (state.heading == HEADING_LEVEL) {
-					if (++state.heading_level > MAX_HEADING_LEVEL)
-						return error(ferr, HEADING_LEVEL_TOO_HIGH, MAX_HEADING_LEVEL);
-				}
-				else
-					state.syntax = false;
-				break;
-
-			case ' ':
-				if (state.heading == HEADING_LEVEL) {
-					html(fprintf(fout, "<h%d>", state.heading_level));
-					state.heading = HEADING_TEXT;
-				}
-				else
-					state.syntax = false;
-				break;
-
-			default:
-				state.syntax = false;
+		if (state.escaped) {
+			state.syntax = false;
+			state.escaped = false;							/* escape lasts only for one character */
 		}
+		else {
+			state.syntax = true;							/* syntax characters */
+			switch (c) {
+				case '#':
+					if (state.colno == 1) {
+						state.heading_level = 1;
+						state.heading = HEADING_LEVEL;
+					}
+					else if (state.heading == HEADING_LEVEL) {
+						if (++state.heading_level > MAX_HEADING_LEVEL)
+							return error(ferr, HEADING_LEVEL_TOO_HIGH, MAX_HEADING_LEVEL);
+					}
+					else
+						state.syntax = false;
+					break;
+
+				case '\\':
+					state.escaped = true;
+					break;
+
+				case '\n':
+				case EOF:
+					if (state.heading == HEADING_TEXT) {
+						html(fprintf(fout, "</h%d>", state.heading_level));
+						state.heading_level = 0;
+						state.heading = NO_HEADING;
+					}
+					break;
+
+				case ' ':
+					if (state.heading == HEADING_LEVEL) {
+						html(fprintf(fout, "<h%d>", state.heading_level));
+						state.heading = HEADING_TEXT;
+					}
+					else
+						state.syntax = false;
+					break;
+
+				default:
+					state.syntax = false;
+			}
+		}
+
+		if (state.heading == HEADING_LEVEL && c != '#')		/* non-space character right after # mark(s) */
+			return error(ferr, HEADING_SYNTAX_SPACE);
 
 		if (c == EOF)
 			state.hit_eof = true;
 		else if (c == '\n') {
-			state.colno = 0;					/* start a new line */
+			state.colno = 0;								/* start a new line */
 			++state.lineno;
 		}
 		else if (is_new_utf8char(c))
 			++state.colno;
-		if (c == '\n' || c == EOF) {
-			if (state.heading == HEADING_TEXT) {
-				html(fprintf(fout, "</h%d>", state.heading_level));
-				state.heading_level = 0;
-				state.heading = NO_HEADING;
-			}
-		}
 
 		if (popt->debug)
 			dumpstate(fout, c);
 		else if (!state.syntax && c != EOF)
-			html(putc(c, fout));				/* echo the character */
+			html(putc(c, fout));							/* echo the character */
 	}
 
 	if (!popt->nodoc)
@@ -190,6 +206,9 @@ int error(FILE *ferr, enum error_type et, ...)		/* variable number of arguments 
 	switch (et) {
 		case HEADING_LEVEL_TOO_HIGH:
 			fprintf(ferr, "HTML does not have headings beyond %d levels", va_arg(ap, int));
+			break;
+		case HEADING_SYNTAX_SPACE:
+			fprintf(ferr, "# marks must be followed by a single space to indicate a heading");
 			break;
 	}
 	fprintf(ferr, "\n");
