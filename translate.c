@@ -101,13 +101,12 @@ int translate(FILE *fin, FILE *fout, FILE *ferr, struct options *popt)
 					break;
 
 				case '\n':
-				case EOF:
 					if (state.heading == HEADING_TEXT) {
 						html(fprintf(fout, "</h%d>", state.heading_level));
 						state.heading_level = 0;
 						state.heading = NO_HEADING;
 					}
-					state.syntax = false;					/* only syntax characters that have to be separately handled
+					state.syntax = false;					/* only syntax character that has to be separately handled
 															   as regular text */
 					break;
 

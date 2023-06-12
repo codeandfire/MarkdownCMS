@@ -141,9 +141,9 @@
 
 	We call any character that is part of the syntax of our language, a "syntax character". For example: a heading is
 	identified by a consecutive sequence of # marks at the start of a line, followed by a single space, and then the
-	contents of the heading, terminated by either an end-of-line or end-of-file character. From this one rule, all of
-	the characters #, space, \n and EOF become syntax characters. The entire set of syntax characters comprises the
-	syntax characters coming from all of our syntax rules.
+	contents of the heading, terminated by an end-of-line character. From this one rule, all of the characters #,
+	space and \n become syntax characters. The entire set of syntax characters comprises the syntax characters coming
+	from all of our syntax rules.
 
 	The question is that these characters may also be used by the user as part of "regular text", i.e. the content of
 	the document that they are writing. For e.g., if a user writes the text
